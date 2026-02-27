@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 """
-Network Monitor API - Test Script
-
-This script demonstrates how to interact with the Network Monitor API
-and can be used for testing and validation.
-
-Usage:
-    python test_api.py
+Network Monitor API - Debug Test Suite
+More detailed testing with better error reporting
 """
 
 import requests
@@ -14,39 +9,58 @@ import json
 import time
 from datetime import datetime, timedelta
 import random
+from typing import Dict, Any
 
 # Configuration
-API_BASE_URL = "http://hamza.kainona"
-# For local testing, use:
 # API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "http://hamza.kainona.com"
 
-# Test data
-TEST_DEVICES = [
-    "device-001",
-    "device-002",
-    "device-003",
-    "device-004",
-    "device-005"
-]
-
+TEST_DEVICES = ["device-001", "device-002", "device-003"]
 OPERATORS = ["Zong", "Jazz", "Ufone", "Telenor"]
 NETWORK_TYPES = ["LTE", "4G", "5G", "3G"]
-
-# Test locations (Pakistan coordinates)
 TEST_LOCATIONS = [
-    (24.8607, 67.0011),    # Karachi
-    (31.5204, 74.3587),    # Lahore
-    (34.0837, 72.3222),    # Peshawar
-    (33.1849, 60.1676),    # Quetta
-    (31.1790, 72.1897),    # Multan
+    (24.8607, 67.0011),
+    (31.5204, 74.3587),
+    (34.0837, 72.3222),
 ]
 
 
-def generate_reading(device_id, location_idx=0):
-    """Generate a random sensor reading"""
-    lat, lon = TEST_LOCATIONS[location_idx % len(TEST_LOCATIONS)]
+def print_section(title: str):
+    print(f"\n{'='*70}")
+    print(f"  {title}")
+    print(f"{'='*70}")
 
-    # Add small variation to coordinates
+
+def print_test(name: str, status: bool, details: str = ""):
+    icon = "✅" if status else "❌"
+    print(f"\n{icon} {name}")
+    if details:
+        print(f"   {details}")
+
+
+def print_request_debug(method: str, url: str, payload: Any = None):
+    print(f"\n📤 Request: {method} {url}")
+    if payload:
+        if isinstance(payload, dict):
+            print(f"   Payload: {json.dumps(payload, indent=2)[:200]}...")
+        else:
+            print(f"   Payload size: {len(str(payload))} bytes")
+
+
+def print_response_debug(response: requests.Response):
+    print(f"\n📥 Response:")
+    print(f"   Status: {response.status_code}")
+    try:
+        data = response.json()
+        print(f"   Body: {json.dumps(data, indent=2)[:500]}")
+        if len(json.dumps(data)) > 500:
+            print("   [truncated...]")
+    except:
+        print(f"   Body: {response.text[:200]}")
+
+
+def generate_reading(device_id: str, idx: int = 0) -> Dict:
+    lat, lon = TEST_LOCATIONS[idx % len(TEST_LOCATIONS)]
     lat += random.uniform(-0.01, 0.01)
     lon += random.uniform(-0.01, 0.01)
 
@@ -69,202 +83,346 @@ def generate_reading(device_id, location_idx=0):
     }
 
 
-def test_health():
-    """Test health check endpoint"""
-    print("\n" + "="*60)
-    print("TEST 1: Health Check")
-    print("="*60)
+# ============================================================================
+# TEST SUITE
+# ============================================================================
 
+def test_root():
+    """Test root endpoint"""
+    print_section("TEST 1: Root Endpoint")
     try:
-        response = requests.get(f"{API_BASE_URL}/health", timeout=10)
-        print(f"Status Code: {response.status_code}")
-        print(f"Response: {json.dumps(response.json(), indent=2)}")
-        return response.status_code == 200
+        print_request_debug("GET", f"{API_BASE_URL}/")
+        response = requests.get(f"{API_BASE_URL}/", timeout=10)
+        print_response_debug(response)
+        status = response.status_code == 200
+        print_test("Root Endpoint", status)
+        return status
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Exception: {e}")
+        return False
+
+
+def test_health():
+    """Test health check"""
+    print_section("TEST 2: Health Check")
+    try:
+        print_request_debug("GET", f"{API_BASE_URL}/health")
+        response = requests.get(f"{API_BASE_URL}/health", timeout=10)
+        print_response_debug(response)
+        status = response.status_code == 200
+        has_db = response.json().get("database") == "connected" if status else False
+        print_test("Health Check", status,
+                   f"Database: {'connected' if has_db else 'FAILED'}")
+        return status and has_db
+    except Exception as e:
+        print(f"❌ Exception: {e}")
         return False
 
 
 def test_single_reading():
     """Test single reading submission"""
-    print("\n" + "="*60)
-    print("TEST 2: Single Reading Submission")
-    print("="*60)
-
+    print_section("TEST 3: Single Reading Submission")
     try:
         reading = generate_reading(TEST_DEVICES[0])
-        print(f"Submitting: {json.dumps(reading, indent=2)}")
+        print_request_debug(
+            "POST", f"{API_BASE_URL}/api/network-data", reading)
 
         response = requests.post(
             f"{API_BASE_URL}/api/network-data",
             json=reading,
             timeout=10
         )
-        print(f"\nStatus Code: {response.status_code}")
-        print(f"Response: {json.dumps(response.json(), indent=2)}")
-        return response.status_code == 200
+        print_response_debug(response)
+
+        status = response.status_code == 200
+        has_id = response.json().get("id") is not None if status else False
+        print_test("Single Reading", status,
+                   f"Saved ID: {response.json().get('id') if has_id else 'MISSING'}")
+        return status and has_id
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Exception: {e}")
         return False
 
 
-def test_batch_readings():
-    """Test batch reading submission"""
-    print("\n" + "="*60)
-    print("TEST 3: Batch Reading Submission (100 readings)")
-    print("="*60)
-
+def test_single_reading_invalid():
+    """Test invalid reading (missing required field)"""
+    print_section("TEST 4: Invalid Reading (Validation)")
     try:
-        # Generate 100 readings
-        readings = []
-        for i in range(100):
-            device_id = TEST_DEVICES[i % len(TEST_DEVICES)]
-            reading = generate_reading(device_id, i)
-            readings.append(reading)
+        reading = {"timestamp": datetime.utcnow().isoformat()
+                   }  # Missing deviceId
+        print_request_debug(
+            "POST", f"{API_BASE_URL}/api/network-data", reading)
 
-        batch_payload = {"readings": readings}
-        print(f"Submitting {len(readings)} readings...")
+        response = requests.post(
+            f"{API_BASE_URL}/api/network-data",
+            json=reading,
+            timeout=10
+        )
+        print_response_debug(response)
 
-        start_time = time.time()
+        status = response.status_code == 422  # Validation error expected
+        print_test("Validation Rejection", status,
+                   f"Got status {response.status_code}")
+        return status
+    except Exception as e:
+        print(f"❌ Exception: {e}")
+        return False
+
+
+def test_batch_small():
+    """Test batch with 10 readings"""
+    print_section("TEST 5: Batch - Small (10 readings)")
+    try:
+        readings = [generate_reading(
+            TEST_DEVICES[i % len(TEST_DEVICES)], i) for i in range(10)]
+        payload = {"readings": readings}
+
+        print_request_debug(
+            "POST", f"{API_BASE_URL}/api/network-data/batch", payload)
+
+        start = time.time()
         response = requests.post(
             f"{API_BASE_URL}/api/network-data/batch",
-            json=batch_payload,
+            json=payload,
             timeout=30
         )
-        elapsed = time.time() - start_time
+        elapsed = time.time() - start
+        print_response_debug(response)
 
-        print(f"\nStatus Code: {response.status_code}")
-        result = response.json()
-        print(f"Response Summary:")
-        print(f"  Total Submitted: {result['total_submitted']}")
-        print(f"  Successful: {result['successful']}")
-        print(f"  Failed: {result['failed']}")
-        print(f"  Time Elapsed: {elapsed:.2f}s")
-        print(f"  Rate: {result['successful']/elapsed:.0f} readings/sec")
+        status = response.status_code == 200
+        result = response.json() if status else {}
 
-        return response.status_code == 200 and result['successful'] == len(readings)
+        summary = f"Successful: {result.get('successful', 'N/A')}/{result.get('total_submitted', 'N/A')}, Time: {elapsed:.2f}s"
+        print_test("Batch Small", status, summary)
+
+        if status and result.get('failed', 0) > 0:
+            print(f"\n   ⚠️  Failed items details:")
+            for detail in result.get('details', []):
+                if detail.get('status') == 'failed':
+                    print(
+                        f"      - Index {detail.get('index')}: {detail.get('error')}")
+
+        return status and result.get('successful') == 10
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Exception: {e}")
+        return False
+
+
+def test_batch_medium():
+    """Test batch with 100 readings"""
+    print_section("TEST 6: Batch - Medium (100 readings)")
+    try:
+        readings = [generate_reading(
+            TEST_DEVICES[i % len(TEST_DEVICES)], i) for i in range(100)]
+        payload = {"readings": readings}
+
+        print(f"📤 Request: POST {API_BASE_URL}/api/network-data/batch")
+        print(f"   Payload size: {len(json.dumps(payload))} bytes")
+
+        start = time.time()
+        response = requests.post(
+            f"{API_BASE_URL}/api/network-data/batch",
+            json=payload,
+            timeout=30
+        )
+        elapsed = time.time() - start
+        print_response_debug(response)
+
+        status = response.status_code == 200
+        result = response.json() if status else {}
+
+        rate = result.get('successful', 0) / elapsed if elapsed > 0 else 0
+        summary = f"Successful: {result.get('successful', 'N/A')}/{result.get('total_submitted', 'N/A')}, Time: {elapsed:.2f}s, Rate: {rate:.0f}/sec"
+        print_test("Batch Medium", status, summary)
+
+        if status and result.get('failed', 0) > 0:
+            print(
+                f"\n   ⚠️  {result.get('failed')} failed items (showing first 3):")
+            for detail in result.get('details', [])[:3]:
+                if detail.get('status') == 'failed':
+                    print(
+                        f"      - Index {detail.get('index')}: {detail.get('error')}")
+
+        return status and result.get('successful') == 100
+    except Exception as e:
+        print(f"❌ Exception: {e}")
+        return False
+
+
+def test_batch_large():
+    """Test batch with 500 readings"""
+    print_section("TEST 7: Batch - Large (500 readings)")
+    try:
+        readings = [generate_reading(
+            TEST_DEVICES[i % len(TEST_DEVICES)], i) for i in range(500)]
+        payload = {"readings": readings}
+
+        print(f"📤 Request: POST {API_BASE_URL}/api/network-data/batch")
+        print(f"   Payload size: {len(json.dumps(payload))} bytes")
+
+        start = time.time()
+        response = requests.post(
+            f"{API_BASE_URL}/api/network-data/batch",
+            json=payload,
+            timeout=60
+        )
+        elapsed = time.time() - start
+        print_response_debug(response)
+
+        status = response.status_code == 200
+        result = response.json() if status else {}
+
+        rate = result.get('successful', 0) / elapsed if elapsed > 0 else 0
+        summary = f"Successful: {result.get('successful', 'N/A')}/{result.get('total_submitted', 'N/A')}, Time: {elapsed:.2f}s, Rate: {rate:.0f}/sec"
+        print_test("Batch Large", status, summary)
+
+        if status and result.get('failed', 0) > 0:
+            print(f"\n   ⚠️  {result.get('failed')} failed items")
+
+        return status and result.get('successful') == 500
+    except Exception as e:
+        print(f"❌ Exception: {e}")
         return False
 
 
 def test_get_all_devices():
     """Test getting all devices"""
-    print("\n" + "="*60)
-    print("TEST 4: Get All Devices")
-    print("="*60)
-
+    print_section("TEST 8: Get All Devices")
     try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/devices",
-            timeout=10
-        )
-        print(f"Status Code: {response.status_code}")
-        devices = response.json()
-        print(f"Found {len(devices)} device(s):")
-        for device in devices:
-            print(
-                f"  - {device['device_id']}: {device['reading_count']} readings")
-        return response.status_code == 200
+        print_request_debug("GET", f"{API_BASE_URL}/api/devices")
+        response = requests.get(f"{API_BASE_URL}/api/devices", timeout=10)
+        print_response_debug(response)
+
+        status = response.status_code == 200
+        devices = response.json() if status else []
+        summary = f"Found {len(devices)} device(s)"
+        print_test("Get All Devices", status, summary)
+
+        if devices:
+            for device in devices[:3]:
+                print(
+                    f"   - {device.get('device_id')}: {device.get('reading_count')} readings")
+            if len(devices) > 3:
+                print(f"   ... and {len(devices)-3} more")
+
+        return status and len(devices) > 0
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Exception: {e}")
         return False
 
 
 def test_get_device_data():
-    """Test retrieving data for specific device"""
-    print("\n" + "="*60)
-    print("TEST 5: Get Device Data")
-    print("="*60)
-
+    """Test getting data for a specific device"""
+    print_section("TEST 9: Get Device Data")
     try:
         device_id = TEST_DEVICES[0]
-        response = requests.get(
-            f"{API_BASE_URL}/api/network-data/{device_id}?limit=5&offset=0",
-            timeout=10
-        )
-        print(f"Status Code: {response.status_code}")
-        data = response.json()
-        print(f"Retrieved {len(data)} reading(s) for {device_id}:")
-        for reading in data[:3]:  # Show first 3
-            print(
-                f"  ID: {reading['id']}, Timestamp: {reading['timestamp']}, Level: {reading['level']}")
-        return response.status_code == 200
+        url = f"{API_BASE_URL}/api/network-data/{device_id}?limit=5&offset=0"
+        print_request_debug("GET", url)
+        response = requests.get(url, timeout=10)
+        print_response_debug(response)
+
+        status = response.status_code == 200
+        data = response.json() if status else []
+        summary = f"Retrieved {len(data)} reading(s) for {device_id}"
+        print_test("Get Device Data", status, summary)
+
+        if data:
+            for reading in data[:2]:
+                print(
+                    f"   - ID: {reading.get('id')}, Level: {reading.get('level')}, RSRP: {reading.get('rsrp')}")
+
+        return status and len(data) > 0
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Exception: {e}")
         return False
 
 
-def test_large_batch():
-    """Test large batch submission (1000 readings)"""
-    print("\n" + "="*60)
-    print("TEST 6: Large Batch (1000 readings)")
-    print("="*60)
-
+def test_batch_with_invalid():
+    """Test batch with mix of valid and invalid readings"""
+    print_section("TEST 10: Batch - Mixed Valid/Invalid")
     try:
         readings = []
-        for i in range(1000):
-            device_id = TEST_DEVICES[i % len(TEST_DEVICES)]
-            reading = generate_reading(device_id, i)
-            readings.append(reading)
+        # Add 5 valid readings
+        for i in range(5):
+            readings.append(generate_reading(
+                TEST_DEVICES[i % len(TEST_DEVICES)], i))
+        # Add invalid reading (missing deviceId)
+        readings.append({"timestamp": datetime.utcnow().isoformat()})
+        # Add more valid readings
+        for i in range(5, 10):
+            readings.append(generate_reading(
+                TEST_DEVICES[i % len(TEST_DEVICES)], i))
 
-        batch_payload = {"readings": readings}
-        print(f"Submitting {len(readings)} readings...")
+        payload = {"readings": readings}
+        print(f"📤 Request: POST {API_BASE_URL}/api/network-data/batch")
+        print(f"   Total readings: {len(readings)} (1 invalid expected)")
 
-        start_time = time.time()
         response = requests.post(
             f"{API_BASE_URL}/api/network-data/batch",
-            json=batch_payload,
-            timeout=60
+            json=payload,
+            timeout=30
         )
-        elapsed = time.time() - start_time
+        print_response_debug(response)
 
-        print(f"\nStatus Code: {response.status_code}")
-        result = response.json()
-        print(f"Response Summary:")
-        print(f"  Total Submitted: {result['total_submitted']}")
-        print(f"  Successful: {result['successful']}")
-        print(f"  Failed: {result['failed']}")
-        print(f"  Time Elapsed: {elapsed:.2f}s")
-        print(f"  Rate: {result['successful']/elapsed:.0f} readings/sec")
+        status = response.status_code == 200
+        result = response.json() if status else {}
 
-        return response.status_code == 200 and result['successful'] == len(readings)
+        summary = f"Successful: {result.get('successful')}, Failed: {result.get('failed')}"
+        print_test("Batch Mixed", status, summary)
+
+        if result.get('failed', 0) > 0:
+            print(f"\n   Failed items:")
+            for detail in result.get('details', []):
+                if detail.get('status') == 'failed':
+                    print(
+                        f"      - Index {detail.get('index')}: {detail.get('error')}")
+
+        return status and result.get('failed') >= 1
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Exception: {e}")
         return False
 
 
+# ============================================================================
+# MAIN
+# ============================================================================
+
 def run_all_tests():
-    """Run all tests"""
     print("\n")
-    print("╔" + "="*58 + "╗")
-    print("║" + " "*10 + "Network Monitor API - Test Suite" + " "*15 + "║")
-    print("╚" + "="*58 + "╝")
+    print("╔" + "="*68 + "╗")
+    print("║" + " "*12 + "Network Monitor API - Debug Test Suite" + " "*18 + "║")
+    print("╚" + "="*68 + "╝")
     print(f"\nAPI Base URL: {API_BASE_URL}")
+    print(f"Timestamp: {datetime.utcnow().isoformat()}")
 
-    results = {
-        "Health Check": test_health(),
-        "Single Reading": test_single_reading(),
-        "Batch Readings (100)": test_batch_readings(),
-        "Get All Devices": test_get_all_devices(),
-        "Get Device Data": test_get_device_data(),
-        "Large Batch (1000)": test_large_batch(),
-    }
+    tests = [
+        ("Root Endpoint", test_root),
+        ("Health Check", test_health),
+        ("Single Reading", test_single_reading),
+        ("Invalid Reading", test_single_reading_invalid),
+        ("Batch Small (10)", test_batch_small),
+        ("Batch Medium (100)", test_batch_medium),
+        ("Batch Large (500)", test_batch_large),
+        ("Get All Devices", test_get_all_devices),
+        ("Get Device Data", test_get_device_data),
+        ("Batch Mixed", test_batch_with_invalid),
+    ]
 
-    print("\n" + "="*60)
-    print("TEST SUMMARY")
-    print("="*60)
+    results = {}
+    for test_name, test_func in tests:
+        results[test_name] = test_func()
 
+    # Summary
+    print_section("TEST SUMMARY")
     passed = sum(1 for v in results.values() if v)
     total = len(results)
 
     for test_name, result in results.items():
-        status = "✅ PASSED" if result else "❌ FAILED"
-        print(f"{test_name:<30} {status}")
+        status = "✅ PASS" if result else "❌ FAIL"
+        print(f"  {test_name:<40} {status}")
 
-    print("\n" + "="*60)
-    print(f"Results: {passed}/{total} tests passed")
-    print("="*60 + "\n")
+    print(f"\n  Overall: {passed}/{total} tests passed")
+    print("="*70 + "\n")
 
     return passed == total
 
@@ -274,5 +432,8 @@ if __name__ == "__main__":
         success = run_all_tests()
         exit(0 if success else 1)
     except KeyboardInterrupt:
-        print("\n\nTests interrupted by user.")
+        print("\n\nTests interrupted.")
+        exit(1)
+    except Exception as e:
+        print(f"\n❌ Fatal error: {e}")
         exit(1)
