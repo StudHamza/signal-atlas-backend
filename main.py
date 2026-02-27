@@ -106,6 +106,25 @@ class NetworkDataResponse(BaseModel):
     tracking_area_code: Optional[int]
     created_at: str
 
+
+class BatchNetworkDataRequest(BaseModel):
+    """Request model for batch processing multiple sensor readings"""
+    readings: List[NetworkDataRequest] = Field(
+        ...,
+        min_items=1,
+        max_items=1000,
+        description="Array of sensor readings (max 1000 per request)"
+    )
+
+
+class BatchNetworkDataResponse(BaseModel):
+    """Response model for batch processing results"""
+    total_submitted: int
+    successful: int
+    failed: int
+    details: List[dict]
+
+
 # Dependency for database session
 
 
@@ -206,6 +225,121 @@ def create_network_data(data: NetworkDataRequest, db: Session = Depends(get_db))
     except Exception as e:
         db.rollback()
         logger.error(f"Error saving data: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.post("/api/network-data/batch", response_model=BatchNetworkDataResponse)
+def create_batch_network_data(batch_data: BatchNetworkDataRequest, db: Session = Depends(get_db)):
+    """
+    Process multiple sensor readings in a single request.
+    
+    Supports up to 1000 readings per request. Returns detailed results including
+    successful saves and any errors encountered.
+    """
+    try:
+        successful = 0
+        failed = 0
+        details = []
+
+        db_readings = []
+
+        # First pass: validate and prepare all readings
+        for idx, data in enumerate(batch_data.readings):
+            try:
+                # Parse timestamp
+                if data.timestamp:
+                    try:
+                        ts = datetime.fromisoformat(
+                            data.timestamp.replace('Z', '+00:00'))
+                    except ValueError:
+                        failed += 1
+                        details.append({
+                            "index": idx,
+                            "device_id": data.deviceId,
+                            "status": "failed",
+                            "error": "Invalid timestamp format"
+                        })
+                        continue
+                else:
+                    ts = datetime.utcnow()
+
+                db_reading = DeviceReading(
+                    device_id=data.deviceId,
+                    timestamp=ts,
+                    latitude=data.latitude,
+                    longitude=data.longitude,
+                    level=data.level,
+                    asu=data.asu,
+                    rsrp=data.rsrp,
+                    rssi=data.rssi,
+                    dbm=data.dbm,
+                    rsrq=data.rsrq,
+                    network_type=data.networkType,
+                    operator=data.operator,
+                    cell_id=data.cellId,
+                    physical_cell_id=data.physicalCellId,
+                    tracking_area_code=data.trackingAreaCode,
+                )
+                db_readings.append((idx, data.deviceId, db_reading))
+
+            except Exception as e:
+                failed += 1
+                details.append({
+                    "index": idx,
+                    "device_id": data.deviceId,
+                    "status": "failed",
+                    "error": str(e)
+                })
+
+        # Second pass: bulk insert all validated readings
+        if db_readings:
+            try:
+                # Add all readings to session
+                for idx, device_id, db_reading in db_readings:
+                    db.add(db_reading)
+
+                # Commit all at once for better performance
+                db.commit()
+
+                # Refresh to get IDs
+                for idx, device_id, db_reading in db_readings:
+                    db.refresh(db_reading)
+                    successful += 1
+                    details.append({
+                        "index": idx,
+                        "device_id": device_id,
+                        "status": "success",
+                        "id": db_reading.id
+                    })
+
+                logger.info(
+                    f"Batch processed: {successful} successful, {failed} failed")
+
+            except Exception as e:
+                db.rollback()
+                failed += successful
+                successful = 0
+                logger.error(f"Batch commit error: {str(e)}")
+                details = [
+                    {
+                        "index": idx,
+                        "device_id": device_id,
+                        "status": "failed",
+                        "error": "Database commit error"
+                    }
+                    for idx, device_id, _ in db_readings
+                ] + details
+
+        return BatchNetworkDataResponse(
+            total_submitted=len(batch_data.readings),
+            successful=successful,
+            failed=failed,
+            details=details
+        )
+
+    except Exception as e:
+        logger.error(f"Batch processing error: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {str(e)}")
 
