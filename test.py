@@ -12,8 +12,8 @@ import random
 from typing import Dict, Any
 
 # Configuration
-API_BASE_URL = "http://localhost:8000"
-# API_BASE_URL = "http://hamza.kainona.com"
+# API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "http://sa.agentraeg.com"
 
 TEST_DEVICES = ["device-001", "device-002", "device-003"]
 OPERATORS = ["Zong", "Jazz", "Ufone", "Telenor"]
