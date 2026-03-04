@@ -10,7 +10,7 @@ The Network Monitor API allows you to:
 - Retrieve readings for specific devices
 - View all registered devices and their statistics
 
-**Server:** `http://sa.agentraeg.com`
+**Server:** `https://sa.agentraeg.com`
 
 ## API Endpoints
 
