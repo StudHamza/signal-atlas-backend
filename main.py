@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
@@ -9,6 +10,7 @@ from sqlalchemy.pool import QueuePool
 from datetime import datetime
 from typing import Optional, List
 import os
+import secrets
 from dotenv import load_dotenv
 import logging
 
@@ -38,6 +40,25 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# API Key Authentication
+API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
+API_KEYS = set(filter(None, os.getenv("API_KEYS", "").split(",")))
+
+if not API_KEYS:
+    # Generate a random key on startup if none are configured, and log it
+    _default_key = secrets.token_urlsafe(32)
+    API_KEYS.add(_default_key)
+    logging.getLogger(__name__).warning(
+        f"No API_KEYS env var set. Generated temporary key: {_default_key}"
+    )
+
+
+def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
+    if not api_key or api_key not in API_KEYS:
+        raise HTTPException(
+            status_code=401, detail="Invalid or missing API key")
+    return api_key
+
 # Database Model
 
 
@@ -53,7 +74,7 @@ class DeviceReading(Base):
     asu = Column(Integer)
     rsrp = Column(Integer)
     rssi = Column(Integer)
-    dbm = Column(Integer)
+    altitude = Column(Float)
     rsrq = Column(Integer)
     network_type = Column(String(20))
     operator = Column(String(100))
@@ -78,7 +99,7 @@ class NetworkDataRequest(BaseModel):
     asu: Optional[int] = None
     rsrp: Optional[int] = None
     rssi: Optional[int] = None
-    dbm: Optional[int] = None
+    altitude: Optional[float] = None
     rsrq: Optional[int] = None
     networkType: Optional[str] = Field(None, max_length=20)
     operator: Optional[str] = Field(None, max_length=100)
@@ -97,7 +118,7 @@ class NetworkDataResponse(BaseModel):
     asu: Optional[int]
     rsrp: Optional[int]
     rssi: Optional[int]
-    dbm: Optional[int]
+    altitude: Optional[float]
     rsrq: Optional[int]
     network_type: Optional[str]
     operator: Optional[str]
@@ -165,7 +186,7 @@ def root():
 
 
 @app.get("/health")
-def health(db: Session = Depends(get_db)):
+def health(db: Session = Depends(get_db), _: str = Depends(verify_api_key)):
     try:
         # Test database connection
         db.execute(text("SELECT 1"))
@@ -181,7 +202,7 @@ def health(db: Session = Depends(get_db)):
 
 
 @app.post("/api/network-data", response_model=dict)
-def create_network_data(data: NetworkDataRequest, db: Session = Depends(get_db)):
+def create_network_data(data: NetworkDataRequest, db: Session = Depends(get_db), _: str = Depends(verify_api_key)):
     try:
         # Parse timestamp
         if data.timestamp:
@@ -203,7 +224,7 @@ def create_network_data(data: NetworkDataRequest, db: Session = Depends(get_db))
             asu=data.asu,
             rsrp=data.rsrp,
             rssi=data.rssi,
-            dbm=data.dbm,
+            altitude=data.altitude,
             rsrq=data.rsrq,
             network_type=data.networkType,
             operator=data.operator,
@@ -230,7 +251,7 @@ def create_network_data(data: NetworkDataRequest, db: Session = Depends(get_db))
 
 
 @app.post("/api/network-data/batch", response_model=BatchNetworkDataResponse)
-def create_batch_network_data(batch_data: BatchNetworkDataRequest, db: Session = Depends(get_db)):
+def create_batch_network_data(batch_data: BatchNetworkDataRequest, db: Session = Depends(get_db), _: str = Depends(verify_api_key)):
     """
     Process multiple sensor readings in a single request.
     
@@ -273,7 +294,7 @@ def create_batch_network_data(batch_data: BatchNetworkDataRequest, db: Session =
                     asu=data.asu,
                     rsrp=data.rsrp,
                     rssi=data.rssi,
-                    dbm=data.dbm,
+                    altitude=data.altitude,
                     rsrq=data.rsrq,
                     network_type=data.networkType,
                     operator=data.operator,
@@ -349,7 +370,8 @@ def get_device_data(
     device_id: str,
     limit: int = 100,
     offset: int = 0,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key)
 ):
     try:
         readings = db.query(DeviceReading)\
@@ -370,7 +392,7 @@ def get_device_data(
                 asu=r.asu,
                 rsrp=r.rsrp,
                 rssi=r.rssi,
-                dbm=r.dbm,
+                altitude=r.altitude,
                 rsrq=r.rsrq,
                 network_type=r.network_type,
                 operator=r.operator,
@@ -388,7 +410,7 @@ def get_device_data(
 
 
 @app.get("/api/devices", response_model=List[dict])
-def get_all_devices(db: Session = Depends(get_db)):
+def get_all_devices(db: Session = Depends(get_db), _: str = Depends(verify_api_key)):
     """Get list of all devices with their latest reading timestamp"""
     try:
         from sqlalchemy import func
