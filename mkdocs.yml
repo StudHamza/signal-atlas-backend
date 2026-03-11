@@ -1,0 +1,46 @@
+site_name: Network Monitor API
+site_description: API for collecting and querying cellular signal data
+site_url: https://studhamza.github.io/signal-atlas-backend/
+repo_url: https://github.com/studhamza/signal-atlas-backend/
+repo_name: GitHub
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+
+nav:
+  - Home: index.md
+  - API Reference:
+    - System: api/system.md
+    - Ingest: api/ingest.md
+    - Mobile Analytics: api/mobile.md
+  - Authentication: authentication.md
+  - Deployment: deployment.md
