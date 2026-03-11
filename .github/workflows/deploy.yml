@@ -3,7 +3,6 @@ name: Deploy to VPS
 on:
   push:
     branches: ["main"]
-  # Allow manual re-deploy from the GitHub Actions tab
   workflow_dispatch:
 
 # Only one deployment runs at a time
