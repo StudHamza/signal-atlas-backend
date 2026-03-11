@@ -46,8 +46,8 @@ class BatchNetworkDataRequest(BaseModel):
     """Request model for batch processing multiple sensor readings."""
     readings: List[NetworkDataRequest] = Field(
         ...,
-        min_items=1,
-        max_items=100,
+        min_length=1,
+        max_length=100,
         description="Array of sensor readings (max 100 per request)"
     )
 

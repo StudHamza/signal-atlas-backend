@@ -12,7 +12,7 @@ from app.models import DeviceReading
 from app.schemas import OverviewResponse, MapResponse, MapPoint, TrendsResponse, TrendPoint
 from app.utils import apply_mobile_filters
 from app.constants import GOOD_RSRP_THRESHOLD, TRENDS_TRUNC
-from sqlalchemy import Integer, Float
+from sqlalchemy import Integer, Float, Numeric, func
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/mobile", tags=["Mobile"])
@@ -109,8 +109,8 @@ def mobile_map(
             DeviceReading.latitude.isnot(None),
             DeviceReading.longitude.isnot(None),
         )
-        lat_cell = func.round(func.cast(DeviceReading.latitude, Float), 3)
-        lon_cell = func.round(func.cast(DeviceReading.longitude, Float), 3)
+        lat_cell = func.round(func.cast(DeviceReading.latitude, Numeric(9, 6)), 3)
+        lon_cell = func.round(func.cast(DeviceReading.longitude, Numeric(9, 6)), 3)
         rows = (
             q.with_entities(
                 lat_cell.label("lat_cell"),
