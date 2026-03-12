@@ -550,6 +550,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#common-query-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Query Parameters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#get-apimobileoverview" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -560,6 +571,17 @@
   
     <nav class="md-nav" aria-label="GET /api/mobile/overview">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#query-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Query Parameters
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#response-200" class="md-nav__link">
@@ -601,6 +623,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#query-parameters_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Query Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#response-200_1" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -627,6 +660,17 @@
   
     <nav class="md-nav" aria-label="GET /api/mobile/trends">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#query-parameters_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Query Parameters
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#response-200_2" class="md-nav__link">
@@ -741,6 +785,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#common-query-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Query Parameters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#get-apimobileoverview" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -751,6 +806,17 @@
   
     <nav class="md-nav" aria-label="GET /api/mobile/overview">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#query-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Query Parameters
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#response-200" class="md-nav__link">
@@ -792,6 +858,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#query-parameters_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Query Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#response-200_1" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -818,6 +895,17 @@
   
     <nav class="md-nav" aria-label="GET /api/mobile/trends">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#query-parameters_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Query Parameters
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#response-200_2" class="md-nav__link">
@@ -856,7 +944,8 @@
 
 
 <h1 id="mobile-analytics-endpoints">Mobile Analytics Endpoints</h1>
-<p>All mobile endpoints share the same set of optional query parameters:</p>
+<p>All mobile endpoints share a common set of optional query parameters, which are listed below for reference. Each endpoint also includes its own parameter table with the same details for convenience.</p>
+<h2 id="common-query-parameters">Common Query Parameters</h2>
 <table>
 <thead>
 <tr>
@@ -889,7 +978,7 @@
 <tr>
 <td><code>lat</code> + <code>lon</code> + <code>radius_km</code></td>
 <td>float</td>
-<td>Geo-filter — all three required together</td>
+<td>Geo‑filter — all three required together</td>
 </tr>
 </tbody>
 </table>
@@ -897,6 +986,53 @@
 <h2 id="get-apimobileoverview"><code>GET /api/mobile/overview</code></h2>
 <p>Aggregate signal statistics for the filtered dataset.</p>
 <p><strong>Auth required:</strong> Yes</p>
+<h3 id="query-parameters">Query Parameters</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>operator</code></td>
+<td>string</td>
+<td>Filter by network operator name</td>
+</tr>
+<tr>
+<td><code>network_type</code></td>
+<td>string</td>
+<td>Filter by technology, e.g. <code>LTE</code>, <code>NR</code></td>
+</tr>
+<tr>
+<td><code>period</code></td>
+<td><code>24h</code> | <code>week</code> | <code>month</code></td>
+<td>Restrict to a recent time window</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td>string</td>
+<td>Filter by device source; <code>all</code> disables the filter</td>
+</tr>
+<tr>
+<td><code>lat</code></td>
+<td>float</td>
+<td>Latitude for geo‑filtering (required together with <code>lon</code> and <code>radius_km</code>)</td>
+</tr>
+<tr>
+<td><code>lon</code></td>
+<td>float</td>
+<td>Longitude for geo‑filtering (required together with <code>lat</code> and <code>radius_km</code>)</td>
+</tr>
+<tr>
+<td><code>radius_km</code></td>
+<td>float</td>
+<td>Radius in kilometers for geo‑filtering (required together with <code>lat</code> and <code>lon</code>)</td>
+</tr>
+</tbody>
+</table>
 <h3 id="response-200">Response <code>200</code></h3>
 <table>
 <thead>
@@ -943,6 +1079,53 @@
 <p>Geo-located signal samples for map rendering.</p>
 <p><strong>Auth required:</strong> Yes</p>
 <p>Points are deduplicated by rounding to a ~110 m grid cell (3 decimal places) and averaging RSRP/RSRQ per cell. Maximum <strong>5 000</strong> points returned.</p>
+<h3 id="query-parameters_1">Query Parameters</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>operator</code></td>
+<td>string</td>
+<td>Filter by network operator name</td>
+</tr>
+<tr>
+<td><code>network_type</code></td>
+<td>string</td>
+<td>Filter by technology, e.g. <code>LTE</code>, <code>NR</code></td>
+</tr>
+<tr>
+<td><code>period</code></td>
+<td><code>24h</code> | <code>week</code> | <code>month</code></td>
+<td>Restrict to a recent time window</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td>string</td>
+<td>Filter by device source; <code>all</code> disables the filter</td>
+</tr>
+<tr>
+<td><code>lat</code></td>
+<td>float</td>
+<td>Latitude for geo‑filtering (required together with <code>lon</code> and <code>radius_km</code>)</td>
+</tr>
+<tr>
+<td><code>lon</code></td>
+<td>float</td>
+<td>Longitude for geo‑filtering (required together with <code>lat</code> and <code>radius_km</code>)</td>
+</tr>
+<tr>
+<td><code>radius_km</code></td>
+<td>float</td>
+<td>Radius in kilometers for geo‑filtering (required together with <code>lat</code> and <code>lon</code>)</td>
+</tr>
+</tbody>
+</table>
 <h3 id="response-200_1">Response <code>200</code></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;points&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
@@ -974,6 +1157,53 @@
 <tr>
 <td><code>month</code></td>
 <td>1 day</td>
+</tr>
+</tbody>
+</table>
+<h3 id="query-parameters_2">Query Parameters</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>operator</code></td>
+<td>string</td>
+<td>Filter by network operator name</td>
+</tr>
+<tr>
+<td><code>network_type</code></td>
+<td>string</td>
+<td>Filter by technology, e.g. <code>LTE</code>, <code>NR</code></td>
+</tr>
+<tr>
+<td><code>period</code></td>
+<td><code>24h</code> | <code>week</code> | <code>month</code></td>
+<td>Restrict to a recent time window (also determines bucket size)</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td>string</td>
+<td>Filter by device source; <code>all</code> disables the filter</td>
+</tr>
+<tr>
+<td><code>lat</code></td>
+<td>float</td>
+<td>Latitude for geo‑filtering (required together with <code>lon</code> and <code>radius_km</code>)</td>
+</tr>
+<tr>
+<td><code>lon</code></td>
+<td>float</td>
+<td>Longitude for geo‑filtering (required together with <code>lat</code> and <code>radius_km</code>)</td>
+</tr>
+<tr>
+<td><code>radius_km</code></td>
+<td>float</td>
+<td>Radius in kilometers for geo‑filtering (required together with <code>lat</code> and <code>lon</code>)</td>
 </tr>
 </tbody>
 </table>
