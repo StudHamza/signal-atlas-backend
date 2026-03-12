@@ -31,3 +31,7 @@ htmlcov/
 # IDEs
 .vscode/
 .idea/
+
+
+# Database
+*.db

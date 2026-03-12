@@ -75,7 +75,12 @@ def apply_mobile_filters(
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - PERIOD_DELTA[period]
         query = query.filter(DeviceReading.timestamp >= cutoff)
     if source and source.lower() != "all":
-        query = query.filter(DeviceReading.source == source)
+        if source.lower() == "measured":
+            # Returns everything EXCEPT predicted
+            query = query.filter(DeviceReading.source != "predicted")
+        else:
+            # Fallback for specific source types
+            query = query.filter(DeviceReading.source == source)
     if lat is not None and lon is not None and radius_km is not None:
         dist = haversine_sql_km(lat, lon)
         query = query.filter(
