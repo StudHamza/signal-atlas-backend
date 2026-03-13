@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth import verify_api_key
 from app.models import DeviceReading
-from app.schemas import OverviewResponse, MapResponse, MapPoint, TrendsResponse, TrendPoint
+from app.schemas import OverviewResponse, MapResponse, MapPoint, TrendsResponse, TrendPoint, FiltersResponse
 from app.utils import apply_mobile_filters
 from app.constants import GOOD_RSRP_THRESHOLD, TRENDS_TRUNC
 from sqlalchemy import Integer, Float, Numeric, func
@@ -197,3 +197,18 @@ def mobile_trends(
     except Exception as e:
         logger.error(f"Trends error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.get("/operators/unique", response_model=FiltersResponse)
+def mobile_filters(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),
+):
+    """Return all unique non-null operator values stored in the database."""
+    rows = (
+        db.query(DeviceReading.operator)
+        .filter(DeviceReading.operator.isnot(None))
+        .distinct()
+        .order_by(DeviceReading.operator)
+        .all()
+    )
+    return FiltersResponse(operators=[r.operator for r in rows])

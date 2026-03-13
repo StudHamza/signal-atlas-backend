@@ -81,3 +81,26 @@ def test_trends_week_period(client, auth_headers):
 def test_trends_invalid_period(client, auth_headers):
     resp = client.get("/api/mobile/trends?period=year", headers=auth_headers)
     assert resp.status_code == 422
+
+# ---------------------------------------------------------------------------
+# /operators/unique
+# ---------------------------------------------------------------------------
+
+def test_operators_unique_returns_list(client, auth_headers):
+    resp = client.get("/api/mobile/operators/unique", headers=auth_headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "operators" in body
+    assert isinstance(body["operators"], list)
+
+def test_operators_unique_contains_seeded_operators(client, auth_headers):
+    resp = client.get("/api/mobile/operators/unique", headers=auth_headers)
+    assert resp.status_code == 200
+    operators = resp.json()["operators"]
+    assert "TestNet" in operators
+    assert "OtherNet" in operators
+
+def test_operators_unique_no_duplicates(client, auth_headers):
+    resp = client.get("/api/mobile/operators/unique", headers=auth_headers)
+    operators = resp.json()["operators"]
+    assert len(operators) == len(set(operators))
