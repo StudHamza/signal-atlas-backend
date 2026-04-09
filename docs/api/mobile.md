@@ -1,14 +1,16 @@
 # Mobile Analytics Endpoints
 
-All mobile endpoints share the same set of optional query parameters:
+All mobile endpoints share a common set of optional query parameters, which are listed below for reference. Each endpoint also includes its own parameter table with the same details for convenience.
+
+## Common Query Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `operator` | string | Filter by network operator name |
 | `network_type` | string | Filter by technology, e.g. `LTE`, `NR` |
 | `period` | `24h` \| `week` \| `month` | Restrict to a recent time window |
-| `source` | string | Filter by device source; `all` disables the filter |
-| `lat` + `lon` + `radius_km` | float | Geo-filter — all three required together |
+| `source` | string | Filter by device source; `all` disables the filter, `measured`, `prediction`|
+| `lat` + `lon` + `radius_km` | float | Geo‑filter — all three required together |
 
 ---
 
@@ -17,6 +19,18 @@ All mobile endpoints share the same set of optional query parameters:
 Aggregate signal statistics for the filtered dataset.
 
 **Auth required:** Yes
+
+### Query Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operator` | string | Filter by network operator name |
+| `network_type` | string | Filter by technology, e.g. `LTE`, `NR` |
+| `period` | `24h` \| `week` \| `month` | Restrict to a recent time window |
+| `source` | string | Filter by device source; `all` disables the filter |
+| `lat` | float | Latitude for geo‑filtering (required together with `lon` and `radius_km`) |
+| `lon` | float | Longitude for geo‑filtering (required together with `lat` and `radius_km`) |
+| `radius_km` | float | Radius in kilometers for geo‑filtering (required together with `lat` and `lon`) |
 
 ### Response `200`
 
@@ -45,6 +59,18 @@ Geo-located signal samples for map rendering.
 
 Points are deduplicated by rounding to a ~110 m grid cell (3 decimal places) and averaging RSRP/RSRQ per cell. Maximum **5 000** points returned.
 
+### Query Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operator` | string | Filter by network operator name |
+| `network_type` | string | Filter by technology, e.g. `LTE`, `NR` |
+| `period` | `24h` \| `week` \| `month` | Restrict to a recent time window |
+| `source` | string | Filter by device source; `all` disables the filter |
+| `lat` | float | Latitude for geo‑filtering (required together with `lon` and `radius_km`) |
+| `lon` | float | Longitude for geo‑filtering (required together with `lat` and `radius_km`) |
+| `radius_km` | float | Radius in kilometers for geo‑filtering (required together with `lat` and `lon`) |
+
 ### Response `200`
 
 ```json
@@ -71,6 +97,18 @@ Bucket size depends on the `period` parameter:
 | `week` | 1 day |
 | `month` | 1 day |
 
+### Query Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operator` | string | Filter by network operator name |
+| `network_type` | string | Filter by technology, e.g. `LTE`, `NR` |
+| `period` | `24h` \| `week` \| `month` | Restrict to a recent time window (also determines bucket size) |
+| `source` | string | Filter by device source; `all` disables the filter |
+| `lat` | float | Latitude for geo‑filtering (required together with `lon` and `radius_km`) |
+| `lon` | float | Longitude for geo‑filtering (required together with `lat` and `radius_km`) |
+| `radius_km` | float | Radius in kilometers for geo‑filtering (required together with `lat` and `lon`) |
+
 ### Response `200`
 
 ```json
@@ -79,5 +117,24 @@ Bucket size depends on the `period` parameter:
     { "timestamp": "2024-06-01T11:00:00Z", "mean_rsrp": -87.3, "mean_rsrq": -11.2 },
     { "timestamp": "2024-06-01T12:00:00Z", "mean_rsrp": -84.1, "mean_rsrq": -9.8 }
   ]
+}
+```
+
+---
+
+## `GET /api/mobile/operators/unique`
+
+Returns all unique, non-null operator names present in the database. Useful for populating filter dropdowns in client UIs.
+
+**Auth required:** Yes
+
+### Response `200`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `operators` | string[] | Alphabetically sorted list of unique operator names |
+```json
+{
+  "operators": ["Orange", "Etisalat", "Vodafone"]
 }
 ```

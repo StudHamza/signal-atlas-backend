@@ -1,7 +1,7 @@
 site_name: Network Monitor API
 site_description: API for collecting and querying cellular signal data
 site_url: https://studhamza.github.io/signal-atlas-backend/
-repo_url: https://github.com/studhamza/signal-atlas-backend/
+repo_url: https://github.com/studhamza/signal-atlas-backend
 repo_name: GitHub
 
 theme:

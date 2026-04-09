@@ -9,7 +9,10 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth import verify_api_key
 from app.models import DeviceReading
-from app.schemas import OverviewResponse, MapResponse, MapPoint, TrendsResponse, TrendPoint, FiltersResponse
+from app.schemas import (
+    OverviewResponse, MapResponse, MapPoint, TrendsResponse, TrendPoint,
+    FiltersResponse, UserSamplesCountResponse, UserSamplesDeleteResponse,
+)
 from app.utils import apply_mobile_filters
 from app.constants import GOOD_RSRP_THRESHOLD, TRENDS_TRUNC
 from sqlalchemy import Integer, Float, Numeric, func
@@ -198,6 +201,7 @@ def mobile_trends(
         logger.error(f"Trends error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+
 @router.get("/operators/unique", response_model=FiltersResponse)
 def mobile_filters(
     db: Session = Depends(get_db),
@@ -212,3 +216,58 @@ def mobile_filters(
         .all()
     )
     return FiltersResponse(operators=[r.operator for r in rows])
+
+
+@router.get("/users_samples", response_model=UserSamplesCountResponse)
+def get_user_samples(
+    device_id: str = Query(..., description="Device identifier (source field)"),
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),
+):
+    """
+    Return the total number of samples submitted by a specific device.
+
+    `device_id` maps to the `source` column in `device_readings`.
+    """
+    try:
+        count = (
+            db.query(func.count(DeviceReading.id))
+            .filter(DeviceReading.source == device_id)
+            .scalar()
+        ) or 0
+        return UserSamplesCountResponse(total_samples_count=count)
+    except Exception as e:
+        logger.error(f"User samples count error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.delete("/users_samples", response_model=UserSamplesDeleteResponse)
+def delete_user_samples(
+    device_id: str = Query(..., description="Device identifier (source field)"),
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),
+):
+    """
+    Delete all samples submitted by a specific device and return how many were removed.
+
+    `device_id` maps to the `source` column in `device_readings`.
+    """
+    try:
+        # Count first so we can report it after deletion
+        count = (
+            db.query(func.count(DeviceReading.id))
+            .filter(DeviceReading.source == device_id)
+            .scalar()
+        ) or 0
+
+        db.query(DeviceReading).filter(DeviceReading.source == device_id).delete(
+            synchronize_session="fetch"
+        )
+        db.commit()
+
+        logger.info(f"Deleted {count} samples for device '{device_id}'")
+        return UserSamplesDeleteResponse(success=True, deleted_samples_count=count)
+    except Exception as e:
+        db.rollback()
+        logger.error(f"User samples delete error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

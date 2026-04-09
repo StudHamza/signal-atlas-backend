@@ -88,5 +88,15 @@ class TrendPoint(BaseModel):
 class TrendsResponse(BaseModel):
     points: List[TrendPoint]
 
+
 class FiltersResponse(BaseModel):
     operators: List[str]
+
+
+class UserSamplesCountResponse(BaseModel):
+    total_samples_count: int
+
+
+class UserSamplesDeleteResponse(BaseModel):
+    success: bool
+    deleted_samples_count: int
