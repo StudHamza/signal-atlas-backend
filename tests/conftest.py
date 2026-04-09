@@ -21,36 +21,49 @@ TEST_DB_URL = "sqlite:///./test.db"
 engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 @pytest.fixture(scope="session", autouse=True)
 def setup_db():
+    """Set up the database structure once for the entire test session."""
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
     if os.path.exists("test.db"):
         os.remove("test.db")
 
+@pytest.fixture(scope="function")
+def db_session():
+    """
+    Creates a fresh database session for each test, wrapped in a transaction.
+    Rolls back any changes after the test completes to prevent state bleed.
+    """
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = TestingSessionLocal(bind=connection)
 
-@pytest.fixture()
-def client():
-    app.dependency_overrides[get_db] = override_get_db
+    yield session
+
+    # Teardown: roll back the transaction and close connections
+    session.close()
+    transaction.rollback()
+    connection.close()
+
+@pytest.fixture(scope="function")
+def client(db_session):
+    """
+    Test client that overrides the FastAPI get_db dependency 
+    to use our isolated, transactional db_session.
+    """
+    def override_get_db_for_test():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db_for_test
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
 
-
 @pytest.fixture()
 def auth_headers():
     return {"X-API-Key": "test-key"}
-
 
 @pytest.fixture()
 def sample_reading():
