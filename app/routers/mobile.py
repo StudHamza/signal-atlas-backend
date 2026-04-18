@@ -100,9 +100,11 @@ def mobile_map(
     """
     Geo-located signal samples filtered by the given criteria.
 
-    Points are deduplicated by rounding coordinates to ~1 km grid cells
+    Points are deduplicated by rounding coordinates to ~110 m grid cells
     (3 decimal places) and averaging RSRP / RSRQ per cell.
-    Maximum 5 000 points returned.
+    When `lat`, `lon`, and `radius_km` are provided, only points within
+    that radius are returned (Haversine distance). All matching grid cells
+    are returned — there is no upper cap on the result count.
     """
     try:
         q = apply_mobile_filters(
@@ -122,8 +124,7 @@ def mobile_map(
                 func.avg(DeviceReading.rsrq).label("mean_rsrq"),
             )
             .group_by(lat_cell, lon_cell)
-            .limit(5000)
-            .all()
+            .all()  # no .limit() — all points within the requested radius are returned
         )
         return MapResponse(
             points=[
@@ -253,7 +254,6 @@ def delete_user_samples(
     `device_id` maps to the `source` column in `device_readings`.
     """
     try:
-        # Count first so we can report it after deletion
         count = (
             db.query(func.count(DeviceReading.id))
             .filter(DeviceReading.source == device_id)
