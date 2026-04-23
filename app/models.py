@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, REAL
 from app.database import Base
 
 
@@ -24,4 +24,8 @@ class DeviceReading(Base):
     tracking_area_code = Column(Integer)
     country = Column(String(100))
     city = Column(String(100))
+    dbm = Column(Integer)
+    rsrq_uncertainty = Column(REAL)
+    rsrp_uncertainty = Column(REAL)
+    gps_accuracy = Column(REAL)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

@@ -47,6 +47,7 @@ def test_ingest_null_timestamp_defaults_to_now(client, auth_headers, sample_read
 # Batch
 # ---------------------------------------------------------------------------
 
+
 def test_batch_ingest_success(client, auth_headers, sample_reading):
     payload = {"readings": [sample_reading, {**sample_reading, "source": "device-002"}]}
     resp = client.post("/api/network-data/batch", json=payload, headers=auth_headers)
@@ -69,7 +70,9 @@ def test_batch_partial_failure(client, auth_headers, sample_reading):
 
 
 def test_batch_empty_readings_rejected(client, auth_headers):
-    resp = client.post("/api/network-data/batch", json={"readings": []}, headers=auth_headers)
+    resp = client.post(
+        "/api/network-data/batch", json={"readings": []}, headers=auth_headers
+    )
     assert resp.status_code == 422
 
 
@@ -77,3 +80,24 @@ def test_batch_exceeds_max_readings(client, auth_headers, sample_reading):
     payload = {"readings": [sample_reading] * 101}
     resp = client.post("/api/network-data/batch", json=payload, headers=auth_headers)
     assert resp.status_code == 422
+
+
+def test_ingest_with_new_fields(client, auth_headers):
+    """Test that the new optional fields (dbm, rsrqUncertainty, rsrpUncertainty, gpsAccuracy) can be ingested."""
+    payload = {
+        "source": "device-001",
+        "latitude": 51.5074,
+        "longitude": -0.1278,
+        "altitude": 20.0,
+        "rsrp": -85,
+        "rsrq": -10,
+        "dbm": -80,
+        "rsrqUncertainty": 1.5,
+        "rsrpUncertainty": 2.0,
+        "gpsAccuracy": 5.0,
+    }
+    resp = client.post("/api/network-data", json=payload, headers=auth_headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["message"] == "Data saved successfully"
+    assert isinstance(body["id"], int)

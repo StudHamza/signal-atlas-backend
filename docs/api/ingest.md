@@ -27,6 +27,10 @@ Ingest a single sensor reading.
 | `trackingAreaCode` | int | — | |
 | `country` | string (max 100) | — | |
 | `city` | string (max 100) | — | |
+| `dbm` | int | — | Signal strength in dBm (alternative to RSRP) |
+| `rsrqUncertainty` | float | — | Uncertainty of RSRQ measurement |
+| `rsrpUncertainty` | float | — | Uncertainty of RSRP measurement |
+| `gpsAccuracy` | float | — | GPS accuracy in meters |
 
 ### Example
 

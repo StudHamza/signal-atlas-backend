@@ -15,6 +15,7 @@ from app.constants import PERIOD_DELTA
 # Geo helpers
 # ---------------------------------------------------------------------------
 
+
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Python-side Haversine distance in km (fallback; prefer PostGIS for scale)."""
     R = 6371.0
@@ -34,27 +35,41 @@ def haversine_sql_km(lat: float, lon: float):
     R = 6371.0
     lat_r = math.radians(lat)
     lon_r = math.radians(lon)
-    return R * 2 * func.atan2(
-        func.sqrt(
-            func.pow(func.sin((func.radians(DeviceReading.latitude) - lat_r) / 2), 2)
-            + func.cos(lat_r)
-            * func.cos(func.radians(DeviceReading.latitude))
-            * func.pow(func.sin((func.radians(DeviceReading.longitude) - lon_r) / 2), 2)
-        ),
-        func.sqrt(
-            1 - (
-                func.pow(func.sin((func.radians(DeviceReading.latitude) - lat_r) / 2), 2)
+    return (
+        R
+        * 2
+        * func.atan2(
+            func.sqrt(
+                func.pow(
+                    func.sin((func.radians(DeviceReading.latitude) - lat_r) / 2), 2
+                )
                 + func.cos(lat_r)
                 * func.cos(func.radians(DeviceReading.latitude))
-                * func.pow(func.sin((func.radians(DeviceReading.longitude) - lon_r) / 2), 2)
-            )
-        ),
+                * func.pow(
+                    func.sin((func.radians(DeviceReading.longitude) - lon_r) / 2), 2
+                )
+            ),
+            func.sqrt(
+                1
+                - (
+                    func.pow(
+                        func.sin((func.radians(DeviceReading.latitude) - lat_r) / 2), 2
+                    )
+                    + func.cos(lat_r)
+                    * func.cos(func.radians(DeviceReading.latitude))
+                    * func.pow(
+                        func.sin((func.radians(DeviceReading.longitude) - lon_r) / 2), 2
+                    )
+                )
+            ),
+        )
     )
 
 
 # ---------------------------------------------------------------------------
 # Query filtering
 # ---------------------------------------------------------------------------
+
 
 def apply_mobile_filters(
     query: Query,
@@ -95,6 +110,7 @@ def apply_mobile_filters(
 # Reading helpers
 # ---------------------------------------------------------------------------
 
+
 def parse_timestamp(raw: Optional[str]) -> datetime:
     """Parse ISO-8601 string to datetime; returns utcnow() if raw is None."""
     if not raw:
@@ -102,7 +118,9 @@ def parse_timestamp(raw: Optional[str]) -> datetime:
     try:
         return datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid timestamp format. Use ISO-8601.")
+        raise HTTPException(
+            status_code=400, detail="Invalid timestamp format. Use ISO-8601."
+        )
 
 
 def build_reading(data: NetworkDataRequest, ts: datetime) -> DeviceReading:
@@ -125,6 +143,10 @@ def build_reading(data: NetworkDataRequest, ts: datetime) -> DeviceReading:
         tracking_area_code=data.trackingAreaCode,
         country=data.country,
         city=data.city,
+        dbm=data.dbm,
+        rsrq_uncertainty=data.rsrqUncertainty,
+        rsrp_uncertainty=data.rsrpUncertainty,
+        gps_accuracy=data.gpsAccuracy,
     )
 
 
@@ -149,5 +171,9 @@ def reading_to_response(r: DeviceReading) -> NetworkDataResponse:
         tracking_area_code=r.tracking_area_code,
         country=r.country,
         city=r.city,
+        dbm=r.dbm,
+        rsrq_uncertainty=r.rsrq_uncertainty,
+        rsrp_uncertainty=r.rsrp_uncertainty,
+        gps_accuracy=r.gps_accuracy,
         created_at=r.created_at.isoformat(),
     )

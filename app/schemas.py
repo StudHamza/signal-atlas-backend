@@ -20,6 +20,10 @@ class NetworkDataRequest(BaseModel):
     trackingAreaCode: Optional[int] = None
     country: Optional[str] = Field(None, max_length=100)
     city: Optional[str] = Field(None, max_length=100)
+    dbm: Optional[int] = None
+    rsrqUncertainty: Optional[float] = None
+    rsrpUncertainty: Optional[float] = None
+    gpsAccuracy: Optional[float] = None
 
 
 class NetworkDataResponse(BaseModel):
@@ -39,21 +43,29 @@ class NetworkDataResponse(BaseModel):
     cell_id: Optional[str]
     physical_cell_id: Optional[int]
     tracking_area_code: Optional[int]
+    country: Optional[str]
+    city: Optional[str]
+    dbm: Optional[int]
+    rsrq_uncertainty: Optional[float]
+    rsrp_uncertainty: Optional[float]
+    gps_accuracy: Optional[float]
     created_at: str
 
 
 class BatchNetworkDataRequest(BaseModel):
     """Request model for batch processing multiple sensor readings."""
+
     readings: List[NetworkDataRequest] = Field(
         ...,
         min_length=1,
         max_length=100,
-        description="Array of sensor readings (max 100 per request)"
+        description="Array of sensor readings (max 100 per request)",
     )
 
 
 class BatchNetworkDataResponse(BaseModel):
     """Response model for batch processing results."""
+
     total_submitted: int
     successful: int
     failed: int

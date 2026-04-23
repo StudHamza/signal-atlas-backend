@@ -40,6 +40,10 @@ Table: **`device_readings`**
 | `rsrp` | `INTEGER` | YES | Reference Signal Received Power (dBm) |
 | `rssi` | `INTEGER` | YES | Received Signal Strength Indicator (dBm) |
 | `rsrq` | `INTEGER` | YES | Reference Signal Received Quality (dB) |
+| `dbm` | `INTEGER` | YES | Signal strength in dBm (alternative to RSRP) |
+| `rsrq_uncertainty` | `FLOAT` | YES | Uncertainty of RSRQ measurement |
+| `rsrp_uncertainty` | `FLOAT` | YES | Uncertainty of RSRP measurement |
+| `gps_accuracy` | `FLOAT` | YES | GPS accuracy in meters |
 | `network_type` | `VARCHAR(20)` | YES | e.g. `LTE`, `5G`, `NR` |
 | `operator` | `VARCHAR(100)` | YES | Mobile operator name |
 | `cell_id` | `VARCHAR(100)` | YES | Cell tower ID |
@@ -121,7 +125,11 @@ X-API-Key: YOUR_API_KEY
   "physicalCellId": 123,
   "trackingAreaCode": 456,
   "country": "United States",
-  "city": "New York"
+  "city": "New York",
+  "dbm": -85,
+  "rsrqUncertainty": 1.5,
+  "rsrpUncertainty": 2.0,
+  "gpsAccuracy": 5.0
 }
 ```
 
@@ -146,6 +154,10 @@ X-API-Key: YOUR_API_KEY
 | `trackingAreaCode` | integer | ✗ | TAC |
 | `country` | string | ✗ | Max 100 chars |
 | `city` | string | ✗ | Max 100 chars |
+| `dbm` | integer | ✗ | Signal strength in dBm (alternative to RSRP) |
+| `rsrqUncertainty` | float | ✗ | Uncertainty of RSRQ measurement |
+| `rsrpUncertainty` | float | ✗ | Uncertainty of RSRP measurement |
+| `gpsAccuracy` | float | ✗ | GPS accuracy in meters |
 
 **Example:**
 ```bash
