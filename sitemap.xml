@@ -2,26 +2,26 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://studhamza.github.io/signal-atlas-backend/</loc>
-         <lastmod>2026-04-09</lastmod>
+         <lastmod>2026-04-23</lastmod>
     </url>
     <url>
          <loc>https://studhamza.github.io/signal-atlas-backend/authentication/</loc>
-         <lastmod>2026-04-09</lastmod>
+         <lastmod>2026-04-23</lastmod>
     </url>
     <url>
          <loc>https://studhamza.github.io/signal-atlas-backend/deployment/</loc>
-         <lastmod>2026-04-09</lastmod>
+         <lastmod>2026-04-23</lastmod>
     </url>
     <url>
          <loc>https://studhamza.github.io/signal-atlas-backend/api/ingest/</loc>
-         <lastmod>2026-04-09</lastmod>
+         <lastmod>2026-04-23</lastmod>
     </url>
     <url>
          <loc>https://studhamza.github.io/signal-atlas-backend/api/mobile/</loc>
-         <lastmod>2026-04-09</lastmod>
+         <lastmod>2026-04-23</lastmod>
     </url>
     <url>
          <loc>https://studhamza.github.io/signal-atlas-backend/api/system/</loc>
-         <lastmod>2026-04-09</lastmod>
+         <lastmod>2026-04-23</lastmod>
     </url>
 </urlset>
