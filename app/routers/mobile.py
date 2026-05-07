@@ -114,18 +114,17 @@ def mobile_map(
             DeviceReading.latitude.isnot(None),
             DeviceReading.longitude.isnot(None),
         )
-        lat_cell = func.round(func.cast(DeviceReading.latitude, Numeric(9, 6)), 3)
-        lon_cell = func.round(func.cast(DeviceReading.longitude, Numeric(9, 6)), 3)
         rows = (
-            q.with_entities(
-                lat_cell.label("lat_cell"),
-                lon_cell.label("lon_cell"),
-                func.avg(DeviceReading.rsrp).label("mean_rsrp"),
-                func.avg(DeviceReading.rsrq).label("mean_rsrq"),
-            )
-            .group_by(lat_cell, lon_cell)
-            .all()  # no .limit() — all points within the requested radius are returned
+        q.with_entities(
+            DeviceReading.latitude.label("lat_cell"),
+            DeviceReading.longitude.label("lon_cell"),
+            func.avg(DeviceReading.rsrp).label("mean_rsrp"),
+            func.avg(DeviceReading.rsrq).label("mean_rsrp"),
         )
+        .group_by(DeviceReading.latitude, DeviceReading.longitude)
+        .limit(5000)
+        .all()
+        )   
         return MapResponse(
             points=[
                 MapPoint(
