@@ -119,7 +119,7 @@ def mobile_map(
             DeviceReading.latitude.label("lat_cell"),
             DeviceReading.longitude.label("lon_cell"),
             func.avg(DeviceReading.rsrp).label("mean_rsrp"),
-            func.avg(DeviceReading.rsrq).label("mean_rsrp"),
+            func.avg(DeviceReading.rsrq).label("mean_rsrq"),
         )
         .group_by(DeviceReading.latitude, DeviceReading.longitude)
         .limit(5000)
