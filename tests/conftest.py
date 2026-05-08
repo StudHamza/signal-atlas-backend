@@ -10,6 +10,7 @@ import pytest
 os.environ["API_KEYS"] = "test-key"
 os.environ["DATABASE_URL"] = "sqlite:///./test.db"
 
+import sqlalchemy as sa
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -20,6 +21,19 @@ from main import app
 TEST_DB_URL = "sqlite:///./test.db"
 engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Patch Geography column type for SQLite compatibility.
+# geoalchemy2.Geography is PostGIS-only; SQLite can't create geography columns.
+# Import is wrapped so conftest loads even when geoalchemy2 is not yet installed.
+try:
+    from app.models import CoverageRequest
+except ImportError:
+    CoverageRequest = None
+
+if CoverageRequest is not None:
+    @sa.event.listens_for(CoverageRequest.__table__, 'before_create')
+    def _replace_geography_with_string(target, connection, **kw):
+        target.c.area.type = sa.String()
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_db():
@@ -64,6 +78,28 @@ def client(db_session):
 @pytest.fixture()
 def auth_headers():
     return {"X-API-Key": "test-key"}
+
+@pytest.fixture()
+def sample_coverage_request():
+    return {
+        "title": "Downtown London Coverage",
+        "description": "Need better coverage in central London",
+        "country": "GB",
+        "city": "London",
+        "reward_amount": 100.00,
+        "target_density_score": 50.0,
+        "area": {
+            "type": "Polygon",
+            "coordinates": [[
+                [-0.13, 51.50],
+                [-0.12, 51.50],
+                [-0.12, 51.51],
+                [-0.13, 51.51],
+                [-0.13, 51.50]
+            ]]
+        },
+        "created_by": "user-123",
+    }
 
 @pytest.fixture()
 def sample_reading():

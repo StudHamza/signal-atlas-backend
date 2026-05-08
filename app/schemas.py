@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 
 class NetworkDataRequest(BaseModel):
@@ -24,6 +24,8 @@ class NetworkDataRequest(BaseModel):
     rsrqUncertainty: Optional[float] = None
     rsrpUncertainty: Optional[float] = None
     gpsAccuracy: Optional[float] = None
+    request_id: Optional[int] = None
+    processing_status: Optional[str] = Field(None, max_length=30)
 
 
 class NetworkDataResponse(BaseModel):
@@ -112,3 +114,63 @@ class UserSamplesCountResponse(BaseModel):
 class UserSamplesDeleteResponse(BaseModel):
     success: bool
     deleted_samples_count: int
+
+
+#  Coverage Request
+
+class PolygonGeometry(BaseModel):
+    type: Literal["Polygon"]
+    coordinates: List
+
+
+class CreateCoverageRequest(BaseModel):
+    title: str
+    description: Optional[str] = None
+    country: str
+    city: str
+    reward_amount: float
+    target_density_score: float
+    area: PolygonGeometry
+    created_by: str
+
+
+class UpdateCoverageRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    reward_amount: Optional[float] = None
+    target_density_score: Optional[float] = None
+    status: Optional[str] = None
+
+class CoverageRequestResponse(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    country: str
+    city: str
+    reward_amount: float
+    initial_density_score: float
+    current_density_score: float
+    target_density_score: float
+    progress_percentage: float
+    status: str
+    created_at: str
+    completed_at: Optional[str]
+
+class CoverageRequestSummary(BaseModel):
+    id: int
+    title: str
+    description: Optional[str]
+    country: str
+    city: str
+    reward_amount: float
+    initial_density_score: float
+    current_density_score: float
+    target_density_score: float
+    progress_percentage: float
+    status: str
+    created_at: str
+    completed_at: Optional[str]
+
+
+class NearbyCoverageResponse(BaseModel):
+    requests: List[CoverageRequestSummary]
