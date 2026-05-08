@@ -2,7 +2,7 @@ from geoalchemy2.shape import to_shape
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from app.database import SessionLocal
-from app.models.coverage import CoverageRequest, CoverageRequestPoint
+from app.models import CoverageRequest, CoverageRequestPoint
 
 
 def find_matching_requests(db, latitude, longitude):

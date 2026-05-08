@@ -9,7 +9,7 @@ from app.models import (
     CoverageRequestContribution,
     CoverageRequestPoint
 )
-from app.api.schemas import (
+from app.schemas import (
     CreateCoverageRequest,
     UpdateCoverageRequest
 )

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from geoalchemy2.shape import from_shape
 from shapely.geometry import shape
-from app.models.coverage import (
+from app.models import (
     CoverageRequest,
     CoverageRequestContribution
 )

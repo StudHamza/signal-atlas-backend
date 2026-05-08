@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy import select, or_
 from sqlalchemy.dialects.postgresql import insert
 from app.database import SessionLocal
-from app.models.coverage import (
+from app.models import (
     DeviceReading,
     CoverageRequest,
     CoverageRequestContribution
