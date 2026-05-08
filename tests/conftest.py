@@ -16,19 +16,24 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, get_db
-from app.models import CoverageRequest
 from main import app
 
 TEST_DB_URL = "sqlite:///./test.db"
 engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Patch Geography column type for SQLite compatibility
+# Patch Geography column type for SQLite compatibility.
 # geoalchemy2.Geography is PostGIS-only; SQLite can't create geography columns.
-# Tests that need spatial queries should use the realdb marker with PostgreSQL.
-@sa.event.listens_for(CoverageRequest.__table__, 'before_create')
-def _replace_geography_with_string(target, connection, **kw):
-    target.c.area.type = sa.String()
+# Import is wrapped so conftest loads even when geoalchemy2 is not yet installed.
+try:
+    from app.models import CoverageRequest
+except ImportError:
+    CoverageRequest = None
+
+if CoverageRequest is not None:
+    @sa.event.listens_for(CoverageRequest.__table__, 'before_create')
+    def _replace_geography_with_string(target, connection, **kw):
+        target.c.area.type = sa.String()
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_db():

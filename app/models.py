@@ -12,7 +12,11 @@ from sqlalchemy import (
 )
 
 from app.database import Base
-from geoalchemy2 import Geography
+try:
+    from geoalchemy2 import Geography
+except ImportError:
+    from sqlalchemy import String
+    Geography = lambda *a, **kw: String()
 
 
 class DeviceReading(Base):
