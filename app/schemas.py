@@ -24,6 +24,8 @@ class NetworkDataRequest(BaseModel):
     rsrqUncertainty: Optional[float] = None
     rsrpUncertainty: Optional[float] = None
     gpsAccuracy: Optional[float] = None
+    request_id: Optional[int] = None
+    processing_status: Optional[str] = Field(None, max_length=30)
 
 
 class NetworkDataResponse(BaseModel):
