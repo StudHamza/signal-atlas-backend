@@ -8,8 +8,10 @@ skipped unless the --realdb marker is used.
 """
 
 import pytest
+pytest.importorskip("geoalchemy2", reason="geoalchemy2 required for coverage request tests")
+
 from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from app.models import (
     CoverageRequest,
