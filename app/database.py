@@ -12,8 +12,13 @@ DATABASE_URL = os.getenv(
     "postgresql://postgres:password@localhost:5432/network_monitor"
 )
 
+connect_args = {}
+if DATABASE_URL.startswith("postgresql"):
+    connect_args["sslmode"] = "require"
+
 engine = create_engine(
     DATABASE_URL,
+    connect_args=connect_args,
     poolclass=QueuePool,
     pool_size=10,
     max_overflow=20,

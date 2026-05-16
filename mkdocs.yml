@@ -42,5 +42,6 @@ nav:
     - System: api/system.md
     - Ingest: api/ingest.md
     - Mobile Analytics: api/mobile.md
+    - Coverage Requests: api/coverage-requests.md
   - Authentication: authentication.md
   - Deployment: deployment.md
