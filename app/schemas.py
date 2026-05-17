@@ -174,3 +174,6 @@ class CoverageRequestSummary(BaseModel):
 
 class NearbyCoverageResponse(BaseModel):
     requests: List[CoverageRequestSummary]
+
+class DensityScoreRequest(BaseModel):
+    area: PolygonGeometry
