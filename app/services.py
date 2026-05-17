@@ -8,6 +8,7 @@ from app.models import (
     CoverageRequest,
     CoverageRequestContribution
 )
+from shapely.wkt import dumps
 
 
 def create_request(db: Session, payload):
@@ -26,6 +27,7 @@ def create_request(db: Session, payload):
 
     # convert to PostGIS
     area_geography = from_shape(polygon_shape, srid=4326)
+    polygon_wkt = dumps(polygon_shape)
 
     # compute initial density score, score = unique points count * 0.01
     initial_points_count = db.execute(
@@ -33,14 +35,16 @@ def create_request(db: Session, payload):
             SELECT COUNT(DISTINCT CONCAT(latitude, ',', longitude))
             FROM device_readings
             WHERE ST_Covers(
-                :polygon::geography,
+                ST_GeogFromText(:polygon),
                 ST_SetSRID(
                     ST_MakePoint(longitude, latitude),
                     4326
                 )::geography
             )
         """),
-        {"polygon": area_geography.data}
+        {
+            "polygon": f"SRID=4326;{polygon_wkt}"
+        }
     ).scalar() or 0
 
     initial_density_score = initial_points_count * 0.01
