@@ -333,3 +333,75 @@ def get_request_contributions(request_id: int, db: Session = Depends(get_db)):
         "contributors": response
     }
 
+# GET MY CONTRIBUTION
+@router.get("/{request_id}/my-contribution")
+def get_my_contribution(
+    request_id: int,
+    device_id: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    contribution = (
+        db.query(CoverageRequestContribution)
+        .filter(
+            CoverageRequestContribution.request_id == request_id,
+            CoverageRequestContribution.device_id == device_id
+        )
+        .first()
+    )
+
+    if not contribution:
+        return {
+            "request_id": request_id,
+            "device_id": device_id,
+            "total_readings": 0,
+            "density_contribution": 0,
+            "reward_share": 0
+        }
+
+    return {
+        "request_id": request_id,
+        "device_id": contribution.device_id,
+        "total_readings": contribution.total_readings,
+        "density_contribution": contribution.density_contribution,
+        "reward_share": contribution.reward_share
+    }
+
+# GET POLYGON DENSITY SCORE
+@router.post("/density-score")
+def get_polygon_density_score(
+    payload,
+    db: Session = Depends(get_db)
+):
+    try:
+        polygon_shape = shape(payload.area.model_dump())
+    except Exception:
+        raise HTTPException(400, "Invalid polygon geometry")
+
+    if not polygon_shape.is_valid:
+        raise HTTPException(400, "Invalid polygon")
+
+    polygon_wkt = dumps(polygon_shape)
+
+    readings_count = db.execute(
+        text("""
+            SELECT COUNT(DISTINCT CONCAT(latitude, ',', longitude))
+            FROM device_readings
+            WHERE ST_Covers(
+                ST_GeogFromText(:polygon),
+                ST_SetSRID(
+                    ST_MakePoint(longitude, latitude),
+                    4326
+                )::geography
+            )
+        """),
+        {
+            "polygon": f"SRID=4326;{polygon_wkt}"
+        }
+    ).scalar() or 0
+
+    density_score = readings_count * 0.01
+
+    return {
+        "readings_count": readings_count,
+        "density_score": density_score
+    }
