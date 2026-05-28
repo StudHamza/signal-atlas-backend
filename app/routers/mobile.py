@@ -251,15 +251,23 @@ def delete_user_samples(
     Delete all samples submitted by a specific device and return how many were removed.
 
     `device_id` maps to the `source` column in `device_readings`.
+
+    Must skip readings that are linked to a coverage request
     """
     try:
         count = (
             db.query(func.count(DeviceReading.id))
-            .filter(DeviceReading.source == device_id)
+            .filter(
+                DeviceReading.source == device_id,
+                DeviceReading.request_id.is_(None)
+            )
             .scalar()
         ) or 0
 
-        db.query(DeviceReading).filter(DeviceReading.source == device_id).delete(
+        db.query(DeviceReading).filter(
+            DeviceReading.source == device_id, 
+            DeviceReading.request_id.is_(None)
+            ).delete(
             synchronize_session="fetch"
         )
         db.commit()
