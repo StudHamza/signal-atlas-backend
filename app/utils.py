@@ -147,6 +147,7 @@ def build_reading(data: NetworkDataRequest, ts: datetime) -> DeviceReading:
         rsrq_uncertainty=data.rsrqUncertainty,
         rsrp_uncertainty=data.rsrpUncertainty,
         gps_accuracy=data.gpsAccuracy,
+        request_id=data.request_id,
     )
 
 
@@ -176,4 +177,5 @@ def reading_to_response(r: DeviceReading) -> NetworkDataResponse:
         rsrp_uncertainty=r.rsrp_uncertainty,
         gps_accuracy=r.gps_accuracy,
         created_at=r.created_at.isoformat(),
+        request_id=data.request_id,
     )
