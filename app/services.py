@@ -90,20 +90,19 @@ def fetch_requests(db: Session, status=None, country=None, city=None, sort_by=No
     if city:
         query = query.filter(CoverageRequest.city == city)
 
-
-    # sorting
-    if sort_by == "reward_asc":
-        query = query.order_by(asc(CoverageRequest.reward_amount))
-
-    elif sort_by == "reward_desc":
+    # sorting (always descending)
+    if sort_by == "reward_amount":
         query = query.order_by(desc(CoverageRequest.reward_amount))
 
-    elif sort_by == "created_at_desc":
+    elif sort_by == "created_at":
         query = query.order_by(desc(CoverageRequest.created_at))
+
+    elif sort_by == "progress":
+        query = query.order_by(desc(CoverageRequest.current_density_score / CoverageRequest.target_density_score))
 
     else:
         # default
-        query = query.order_by(asc(CoverageRequest.created_at))
+        query = query.order_by(desc(CoverageRequest.created_at))
 
     requests = query.all()
 
