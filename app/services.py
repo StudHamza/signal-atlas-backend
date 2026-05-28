@@ -90,7 +90,11 @@ def fetch_requests(db: Session, status=None, country=None, city=None, sort_by=No
     if city:
         query = query.filter(CoverageRequest.city == city)
 
-    # sorting (always descending)
+    # normalize
+    if sort_by:
+        sort_by = sort_by.strip().lower()
+
+    # sorting
     if sort_by == "reward_amount":
         query = query.order_by(desc(CoverageRequest.reward_amount))
 
@@ -98,7 +102,12 @@ def fetch_requests(db: Session, status=None, country=None, city=None, sort_by=No
         query = query.order_by(desc(CoverageRequest.created_at))
 
     elif sort_by == "progress":
-        query = query.order_by(desc(CoverageRequest.current_density_score / CoverageRequest.target_density_score))
+        query = query.order_by(
+            desc(
+                CoverageRequest.current_density_score /
+                CoverageRequest.target_density_score
+            )
+        )
 
     else:
         # default
