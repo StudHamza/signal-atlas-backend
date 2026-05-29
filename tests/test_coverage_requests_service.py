@@ -270,7 +270,7 @@ class TestFetchRequests:
         ]
         db = self._mock_db(reqs)
 
-        result = fetch_requests(db, sort_by="reward_desc")
+        result = fetch_requests(db, sort_by="reward_amount")
 
         amounts = [r["reward_amount"] for r in result["requests"]]
         assert amounts == [100.0, 50.0]
@@ -282,7 +282,7 @@ class TestFetchRequests:
         ]
         db = self._mock_db(reqs)
 
-        result = fetch_requests(db, sort_by="created_at_desc")
+        result = fetch_requests(db, sort_by="created_at")
 
         ids = [r["id"] for r in result["requests"]]
         assert ids == [2, 1]

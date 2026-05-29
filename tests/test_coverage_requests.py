@@ -201,7 +201,7 @@ class TestListCoverageRequests:
         assert len(data) == 1
         assert data[0]["title"] == "Paris"
 
-    def test_list_sort_reward_asc(self, client, db_session):
+    def test_list_sort_reward_amount(self, client, db_session):
         high = CoverageRequest(
             title="High", created_by="u1", country="GB",
             city="London", area="x", target_density_score=50,
@@ -215,10 +215,10 @@ class TestListCoverageRequests:
         db_session.add_all([high, low])
         db_session.commit()
 
-        resp = client.get(f"{LIST_URL}?sort_by=reward_asc")
+        resp = client.get(f"{LIST_URL}?sort_by=reward_amount")
         data = resp.json()["requests"]
-        assert data[0]["title"] == "Low"
-        assert data[1]["title"] == "High"
+        assert data[0]["title"] == "High"
+        assert data[1]["title"] == "Low"
 
     def test_list_sort_reward_desc(self, client, db_session):
         high = CoverageRequest(
@@ -234,7 +234,7 @@ class TestListCoverageRequests:
         db_session.add_all([high, low])
         db_session.commit()
 
-        resp = client.get(f"{LIST_URL}?sort_by=reward_desc")
+        resp = client.get(f"{LIST_URL}?sort_by=reward_amount")
         data = resp.json()["requests"]
         assert data[0]["title"] == "High"
         assert data[1]["title"] == "Low"
@@ -255,12 +255,12 @@ class TestListCoverageRequests:
         db_session.add_all([old, new])
         db_session.commit()
 
-        resp = client.get(f"{LIST_URL}?sort_by=created_at_desc")
+        resp = client.get(f"{LIST_URL}?sort_by=created_at")
         data = resp.json()["requests"]
         assert data[0]["title"] == "New"
         assert data[1]["title"] == "Old"
 
-    def test_list_default_sort_is_created_at_asc(self, client, db_session):
+    def test_list_default_sort_is_created_at_desc(self, client, db_session):
         old = CoverageRequest(
             title="Old", created_by="u1", country="GB",
             city="London", area="x", target_density_score=50,
@@ -278,8 +278,8 @@ class TestListCoverageRequests:
 
         resp = client.get(LIST_URL)
         data = resp.json()["requests"]
-        assert data[0]["title"] == "Old"
-        assert data[1]["title"] == "New"
+        assert data[0]["title"] == "New"
+        assert data[1]["title"] == "Old"
 
     def test_list_zero_target_progress(self, client, db_session):
         req = CoverageRequest(
