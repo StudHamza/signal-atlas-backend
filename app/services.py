@@ -6,9 +6,12 @@ from geoalchemy2.shape import from_shape
 from shapely.geometry import shape
 from app.models import (
     CoverageRequest,
-    CoverageRequestContribution
+    CoverageRequestContribution,
+    Profile,
+    WalletTransaction
 )
 from shapely.wkt import dumps
+from decimal import Decimal
 
 
 def create_request(db: Session, payload):
@@ -243,3 +246,71 @@ def update_request(db: Session, request_id, payload):
         "message":
             "Coverage request updated successfully"
     }
+
+
+# --------------- Profiles and Wallets --------------- #
+
+def create_reward_transaction(
+    db,
+    user_id: str,
+    amount: Decimal,
+    description: str,
+) -> WalletTransaction:
+    profile = (
+        db.query(Profile)
+        .filter(Profile.id == user_id)
+        .first()
+    )
+
+    if not profile:
+        raise ValueError("Profile not found")
+
+    profile.credits += amount
+
+    transaction = WalletTransaction(
+        user_id=user_id,
+        amount=amount,
+        transaction_type="REWARD",
+        status="COMPLETED",
+        description=description,
+    )
+
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+
+    return transaction
+
+def create_withdrawal_transaction(
+    db,
+    user_id: str,
+    amount: Decimal,
+    description: str,
+) -> WalletTransaction:
+    profile = (
+        db.query(Profile)
+        .filter(Profile.id == user_id)
+        .first()
+    )
+
+    if not profile:
+        raise ValueError("Profile not found")
+
+    if profile.credits < amount:
+        raise ValueError("Insufficient credits")
+
+    profile.credits -= amount
+
+    transaction = WalletTransaction(
+        user_id=user_id,
+        amount=-amount,
+        transaction_type="WITHDRAWAL",
+        status="COMPLETED",
+        description=description,
+    )
+
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+
+    return transaction

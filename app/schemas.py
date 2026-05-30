@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Literal
-
+from decimal import Decimal
+from datetime import datetime
+from pydantic import ConfigDict
 
 class NetworkDataRequest(BaseModel):
     source: str = Field(..., min_length=1, max_length=50)
@@ -177,3 +179,79 @@ class NearbyCoverageResponse(BaseModel):
 
 class DensityScoreRequest(BaseModel):
     area: PolygonGeometry
+
+# Profiles and Wallets
+
+class ProfileResponse(BaseModel):
+    id: str
+    username: str
+    credits: Decimal
+    device_ids: List[str]
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class AccountByDeviceRequest(BaseModel):
+    device_id: str
+
+class AccountByDeviceResponse(BaseModel):
+    account_exists: bool
+    profile: ProfileResponse | None = None
+
+
+class CreateAccountRequest(BaseModel):
+    username: str = Field(
+        ...,
+        min_length=3,
+        max_length=50,
+    )
+
+    device_id: Optional[str] = Field(
+        default=None,
+        max_length=100,
+    )
+
+class UpdateProfileRequest(BaseModel):
+    username: str = Field(
+        ...,
+        min_length=3,
+        max_length=50,
+    )
+
+class RegisterDeviceRequest(BaseModel):
+    user_id: str
+    device_id: str = Field(..., max_length=100)
+
+class UserDeviceResponse(BaseModel):
+    id: int
+    user_id: str
+    device_id: str
+    created_at: datetime
+    last_seen_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class UserDevicesResponse(BaseModel):
+    devices: list[UserDeviceResponse]
+
+class WalletDetailsResponse(BaseModel):
+    credits: Decimal
+    transaction_count: int
+
+class WalletTransactionResponse(BaseModel):
+    id: int
+    user_id: str
+
+    amount: Decimal
+
+    transaction_type: str
+    status: str
+
+    description: Optional[str]
+
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class WalletTransactionsResponse(BaseModel):
+    transactions: list[WalletTransactionResponse]

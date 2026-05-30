@@ -70,7 +70,7 @@ class DeviceReading(Base):
         index=True
     )
 
-
+# --------------- Coverage Request --------------- #
 class CoverageRequest(Base):
     __tablename__ = "coverage_requests"
 
@@ -170,3 +170,43 @@ class CoverageRequestPoint(Base):
             name="uq_request_point"
         ),
     )
+
+# --------------- Profiles and Wallets --------------- #
+class Profile(Base):
+    __tablename__ = "profiles"
+
+    id = Column(String(36), primary_key=True)
+
+    username = Column(String(50), unique=True, nullable=False, index=True)
+
+    credits = Column(Numeric(12, 2), nullable=False, default=0)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class UserDevice(Base):
+    __tablename__ = "user_devices"
+
+    id = Column(Integer, primary_key=True)
+
+    user_id = Column(String(36), nullable=False, index=True)
+
+    device_id = Column(String(100), nullable=False, unique=True, index=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    last_seen_at = Column(DateTime, default=datetime.utcnow)
+
+class WalletTransaction(Base):
+    __tablename__ = "wallet_transactions"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String(36), nullable=False, index=True)
+
+    amount = Column(Numeric(12, 2), nullable=False)
+
+    transaction_type = Column(String(30), nullable=False, index=True)
+    status = Column(String(30), nullable=False, default="COMPLETED", index=True)
+    description = Column(String(255))
+
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
