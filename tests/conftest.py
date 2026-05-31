@@ -126,3 +126,7 @@ def sample_device_id():
 @pytest.fixture
 def sample_profile():
     return {"username": "testuser"}
+
+@pytest.fixture
+def user(client):
+    return client.post("/api/account/create", json={"username": "user1"}).json()

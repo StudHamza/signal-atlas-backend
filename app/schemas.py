@@ -198,6 +198,11 @@ class AccountByDeviceResponse(BaseModel):
     account_exists: bool
     profile: ProfileResponse | None = None
 
+class LoginRequest(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+
+class LoginResponse(BaseModel):
+    profile: ProfileResponse
 
 class CreateAccountRequest(BaseModel):
     username: str = Field(

@@ -7,6 +7,8 @@ from decimal import Decimal
 from datetime import datetime
 from app.schemas import (
     ProfileResponse,
+    LoginRequest,
+    LoginResponse,
     AccountByDeviceRequest,
     AccountByDeviceResponse,
     CreateAccountRequest,
@@ -25,6 +27,42 @@ from app.models import (
 )
 
 router = APIRouter(prefix="/api")
+
+# LOGIN
+@router.post(
+    "/auth/login",
+    response_model=LoginResponse,
+)
+def login(
+    request: LoginRequest,
+    db: Session = Depends(get_db),
+):
+    profile = (
+        db.query(Profile)
+        .filter(Profile.username == request.username)
+        .first()
+    )
+
+    if not profile:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    return LoginResponse(
+        profile=ProfileResponse(
+            id=profile.id,
+            username=profile.username,
+            credits=profile.credits,
+            device_ids=[
+                d.device_id
+                for d in db.query(UserDevice)
+                .filter(UserDevice.user_id == profile.id)
+                .all()
+            ],
+            created_at=profile.created_at,
+        )
+    )
 
 # GET ACCOUNT BY DEVICE
 @router.post(
