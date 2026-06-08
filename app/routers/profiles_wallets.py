@@ -63,6 +63,7 @@ def login(
             username=profile.username,
             credits=float(profile.credits) if profile.credits else None,
             created_at=profile.created_at.isoformat() if profile.created_at else None,
+            device_ids=device_ids,
         )
     )
 
@@ -111,6 +112,7 @@ def get_account_by_device(
             username=profile.username,
             credits=float(profile.credits) if profile.credits else None,
             created_at=profile.created_at.isoformat() if profile.created_at else None,
+            device_ids=device_ids,
         ),
     )
 
@@ -157,12 +159,15 @@ def create_account(
     db.add(profile)
     db.flush()
 
+    device_ids: list[str] = []
+
     if request.device_id:
         device = UserDevice(
             user_id=profile.id,
             device_id=request.device_id,
         )
         db.add(device)
+        device_ids.append(request.device_id)
 
     db.commit()
     db.refresh(profile)
@@ -172,6 +177,7 @@ def create_account(
         username=profile.username,
         credits=float(profile.credits) if profile.credits else None,
         created_at=profile.created_at.isoformat() if profile.created_at else None,
+        device_ids=device_ids,
     )
 
 
@@ -186,8 +192,8 @@ def register_device(
 ):
     try:
         user_uuid = UUID(request.user_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid user_id format")
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=404, detail="Profile not found")
 
     profile = (
         db.query(Profile)
@@ -243,8 +249,8 @@ def get_profile(
 ):
     try:
         user_uuid = UUID(id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid id format")
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=404, detail="Profile not found")
 
     profile = (
         db.query(Profile)
@@ -272,6 +278,7 @@ def get_profile(
         username=profile.username,
         credits=float(profile.credits) if profile.credits else None,
         created_at=profile.created_at.isoformat() if profile.created_at else None,
+        device_ids=device_ids,
     )
 
 
@@ -287,8 +294,8 @@ def update_profile(
 ):
     try:
         user_uuid = UUID(id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid id format")
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=404, detail="Profile not found")
 
     profile = (
         db.query(Profile)
@@ -335,6 +342,7 @@ def update_profile(
         username=profile.username,
         credits=float(profile.credits) if profile.credits else None,
         created_at=profile.created_at.isoformat() if profile.created_at else None,
+        device_ids=device_ids,
     )
 
 
@@ -349,8 +357,8 @@ def get_wallet_details(
 ):
     try:
         user_uuid = UUID(profile_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid profile_id format")
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=404, detail="Profile not found")
 
     profile = (
         db.query(Profile)
@@ -392,8 +400,8 @@ def get_wallet_transactions(
 ):
     try:
         user_uuid = UUID(profile_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid profile_id format")
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=404, detail="Profile not found")
 
     profile = (
         db.query(Profile)

@@ -11,14 +11,24 @@ from sqlalchemy import (
     Text,
     UniqueConstraint
 )
-from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
+try:
+    from sqlalchemy.dialects.postgresql import UUID
+    _UUID = UUID
+except ImportError:
+    _UUID = None
+
 try:
     from geoalchemy2 import Geography
 except ImportError:
     from sqlalchemy import String
     Geography = lambda *a, **kw: String()
+
+if _UUID is None:
+    def UUID(*a, **kw):  # noqa: N802
+        from sqlalchemy import String
+        return String(36)
 
 
 class DeviceReading(Base):
