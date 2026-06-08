@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Optional
 from geoalchemy2.shape import to_shape
+from app.auth import verify_api_key
 from app.database import get_db
 from app.models import (
     CoverageRequest,
@@ -36,7 +37,8 @@ def get_coverage_requests(
     country: Optional[str] = Query(None),
     city: Optional[str] = Query(None),
     sort_by: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),
 ):
 
     return fetch_requests(
@@ -58,7 +60,8 @@ def get_nearby_requests(
     country: Optional[str] = Query(None),
     city: Optional[str] = Query(None),
 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),
 ):
 
     radius_meters = radius_km * 1000
@@ -169,7 +172,7 @@ def get_polygon_density_score(
 
 # GET SINGLE REQUEST
 @router.get("/{request_id}")
-def get_coverage_request(request_id: int, db: Session = Depends(get_db)):
+def get_coverage_request(request_id: int, db: Session = Depends(get_db), _: str = Depends(verify_api_key)):
 
     request = (
         db.query(CoverageRequest)
@@ -245,7 +248,7 @@ def get_coverage_request(request_id: int, db: Session = Depends(get_db)):
 
 # GET REQUEST PROGRESS
 @router.get("/{request_id}/progress")
-def get_request_progress( request_id: int, db: Session = Depends(get_db)):
+def get_request_progress( request_id: int, db: Session = Depends(get_db), _: str = Depends(verify_api_key)):
 
     request = (
         db.query(CoverageRequest)
@@ -308,7 +311,8 @@ def get_request_progress( request_id: int, db: Session = Depends(get_db)):
 @router.post("")
 def create_coverage_request(
     payload: CreateCoverageRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),
 ):
 
     return create_request(
@@ -322,7 +326,8 @@ def create_coverage_request(
 def update_coverage_request(
     request_id: int,
     payload: UpdateCoverageRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key),
 ):
 
     return update_request(
@@ -334,7 +339,7 @@ def update_coverage_request(
 
 # GET CONTRIBUTIONS
 @router.get("/{request_id}/contributions")
-def get_request_contributions(request_id: int, db: Session = Depends(get_db)):
+def get_request_contributions(request_id: int, db: Session = Depends(get_db), _: str = Depends(verify_api_key)):
 
     request = (
         db.query(CoverageRequest)

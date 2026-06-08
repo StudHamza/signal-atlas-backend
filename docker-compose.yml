@@ -11,3 +11,11 @@ services:
       - API_KEYS=${API_KEYS}
       - PORT=8000
     restart: unless-stopped
+
+  worker:
+    build: .
+    container_name: sa-worker
+    command: python workers/coverage_worker.py
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    restart: unless-stopped

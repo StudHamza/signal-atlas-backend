@@ -33,25 +33,18 @@ MOCK_CREATE_RESPONSE = {
 
 
 class TestCreateCoverageRequest:
-    def test_create_success(self, client, sample_coverage_request):
+    def test_create_success(self, client, auth_headers, sample_coverage_request):
         with patch("app.routers.coverage_requests.create_request") as mock_create:
             mock_create.return_value = MOCK_CREATE_RESPONSE
 
-            resp = client.post(CREATE_URL, json=sample_coverage_request)
+            resp = client.post(CREATE_URL, json=sample_coverage_request, headers=auth_headers)
             assert resp.status_code == 200
             body = resp.json()
             assert body["message"] == "Coverage request created successfully"
             assert body["request_id"] == 1
             assert body["status"] == "OPEN"
 
-    def test_create_does_not_require_auth(self, client, sample_coverage_request):
-        with patch("app.routers.coverage_requests.create_request") as mock_create:
-            mock_create.return_value = MOCK_CREATE_RESPONSE
-
-            resp = client.post(CREATE_URL, json=sample_coverage_request)
-            assert resp.status_code == 200
-
-    def test_create_invalid_polygon_empty_coords(self, client):
+    def test_create_invalid_polygon_empty_coords(self, client, auth_headers):
         payload = {
             "title": "Test",
             "country": "GB",
@@ -61,10 +54,10 @@ class TestCreateCoverageRequest:
             "area": {"type": "Polygon", "coordinates": []},
             "created_by": "user-1",
         }
-        resp = client.post(CREATE_URL, json=payload)
+        resp = client.post(CREATE_URL, json=payload, headers=auth_headers)
         assert resp.status_code == 400
 
-    def test_create_polygon_too_few_points(self, client):
+    def test_create_polygon_too_few_points(self, client, auth_headers):
         payload = {
             "title": "Test",
             "country": "GB",
@@ -77,14 +70,14 @@ class TestCreateCoverageRequest:
             },
             "created_by": "user-1",
         }
-        resp = client.post(CREATE_URL, json=payload)
+        resp = client.post(CREATE_URL, json=payload, headers=auth_headers)
         assert resp.status_code == 400
 
-    def test_create_missing_required_fields_return_422(self, client):
-        resp = client.post(CREATE_URL, json={})
+    def test_create_missing_required_fields_return_422(self, client, auth_headers):
+        resp = client.post(CREATE_URL, json={}, headers=auth_headers)
         assert resp.status_code == 422
 
-    def test_create_missing_title(self, client):
+    def test_create_missing_title(self, client, auth_headers):
         payload = {
             "country": "GB",
             "city": "London",
@@ -96,7 +89,7 @@ class TestCreateCoverageRequest:
             },
             "created_by": "user-1",
         }
-        resp = client.post(CREATE_URL, json=payload)
+        resp = client.post(CREATE_URL, json=payload, headers=auth_headers)
         assert resp.status_code == 422
 
 
@@ -108,12 +101,12 @@ LIST_URL = "/coverage-requests"
 
 
 class TestListCoverageRequests:
-    def test_list_empty(self, client):
-        resp = client.get(LIST_URL)
+    def test_list_empty(self, client, auth_headers):
+        resp = client.get(LIST_URL, headers=auth_headers)
         assert resp.status_code == 200
         assert resp.json()["requests"] == []
 
-    def test_list_returns_all(self, client, db_session):
+    def test_list_returns_all(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Request A",
             created_by="user-1",
@@ -129,7 +122,7 @@ class TestListCoverageRequests:
         db_session.add(req)
         db_session.commit()
 
-        resp = client.get(LIST_URL)
+        resp = client.get(LIST_URL, headers=auth_headers)
         assert resp.status_code == 200
         data = resp.json()["requests"]
         assert len(data) == 1
@@ -139,7 +132,7 @@ class TestListCoverageRequests:
         assert data[0]["reward_amount"] == 100.0
         assert data[0]["progress_percentage"] == 10.0
 
-    def test_list_filter_by_status(self, client, db_session):
+    def test_list_filter_by_status(self, client, auth_headers, db_session):
         open_req = CoverageRequest(
             title="Open", created_by="u1", country="GB",
             city="London", area="x", target_density_score=50,
@@ -153,17 +146,17 @@ class TestListCoverageRequests:
         db_session.add_all([open_req, cancelled_req])
         db_session.commit()
 
-        resp = client.get(f"{LIST_URL}?status=OPEN")
+        resp = client.get(f"{LIST_URL}?status=OPEN", headers=auth_headers)
         data = resp.json()["requests"]
         assert len(data) == 1
         assert data[0]["title"] == "Open"
 
-        resp = client.get(f"{LIST_URL}?status=CANCELLED")
+        resp = client.get(f"{LIST_URL}?status=CANCELLED", headers=auth_headers)
         data = resp.json()["requests"]
         assert len(data) == 1
         assert data[0]["title"] == "Cancelled"
 
-    def test_list_filter_by_country(self, client, db_session):
+    def test_list_filter_by_country(self, client, auth_headers, db_session):
         gb = CoverageRequest(
             title="GB Req", created_by="u1", country="GB",
             city="London", area="x", target_density_score=50,
@@ -177,12 +170,12 @@ class TestListCoverageRequests:
         db_session.add_all([gb, us])
         db_session.commit()
 
-        resp = client.get(f"{LIST_URL}?country=US")
+        resp = client.get(f"{LIST_URL}?country=US", headers=auth_headers)
         data = resp.json()["requests"]
         assert len(data) == 1
         assert data[0]["title"] == "US Req"
 
-    def test_list_filter_by_city(self, client, db_session):
+    def test_list_filter_by_city(self, client, auth_headers, db_session):
         london = CoverageRequest(
             title="London", created_by="u1", country="GB",
             city="London", area="x", target_density_score=50,
@@ -196,12 +189,12 @@ class TestListCoverageRequests:
         db_session.add_all([london, paris])
         db_session.commit()
 
-        resp = client.get(f"{LIST_URL}?city=Paris")
+        resp = client.get(f"{LIST_URL}?city=Paris", headers=auth_headers)
         data = resp.json()["requests"]
         assert len(data) == 1
         assert data[0]["title"] == "Paris"
 
-    def test_list_sort_reward_amount(self, client, db_session):
+    def test_list_sort_reward_amount(self, client, auth_headers, db_session):
         high = CoverageRequest(
             title="High", created_by="u1", country="GB",
             city="London", area="x", target_density_score=50,
@@ -215,31 +208,12 @@ class TestListCoverageRequests:
         db_session.add_all([high, low])
         db_session.commit()
 
-        resp = client.get(f"{LIST_URL}?sort_by=reward_amount")
+        resp = client.get(f"{LIST_URL}?sort_by=reward_amount", headers=auth_headers)
         data = resp.json()["requests"]
         assert data[0]["title"] == "High"
         assert data[1]["title"] == "Low"
 
-    def test_list_sort_reward_desc(self, client, db_session):
-        high = CoverageRequest(
-            title="High", created_by="u1", country="GB",
-            city="London", area="x", target_density_score=50,
-            reward_amount=200, status="OPEN",
-        )
-        low = CoverageRequest(
-            title="Low", created_by="u1", country="GB",
-            city="London", area="x", target_density_score=50,
-            reward_amount=50, status="OPEN",
-        )
-        db_session.add_all([high, low])
-        db_session.commit()
-
-        resp = client.get(f"{LIST_URL}?sort_by=reward_amount")
-        data = resp.json()["requests"]
-        assert data[0]["title"] == "High"
-        assert data[1]["title"] == "Low"
-
-    def test_list_sort_created_at_desc(self, client, db_session):
+    def test_list_sort_created_at_desc(self, client, auth_headers, db_session):
         old = CoverageRequest(
             title="Old", created_by="u1", country="GB",
             city="London", area="x", target_density_score=50,
@@ -255,12 +229,12 @@ class TestListCoverageRequests:
         db_session.add_all([old, new])
         db_session.commit()
 
-        resp = client.get(f"{LIST_URL}?sort_by=created_at")
+        resp = client.get(f"{LIST_URL}?sort_by=created_at", headers=auth_headers)
         data = resp.json()["requests"]
         assert data[0]["title"] == "New"
         assert data[1]["title"] == "Old"
 
-    def test_list_default_sort_is_created_at_desc(self, client, db_session):
+    def test_list_default_sort_is_created_at_desc(self, client, auth_headers, db_session):
         old = CoverageRequest(
             title="Old", created_by="u1", country="GB",
             city="London", area="x", target_density_score=50,
@@ -276,12 +250,12 @@ class TestListCoverageRequests:
         db_session.add_all([old, new])
         db_session.commit()
 
-        resp = client.get(LIST_URL)
+        resp = client.get(LIST_URL, headers=auth_headers)
         data = resp.json()["requests"]
         assert data[0]["title"] == "New"
         assert data[1]["title"] == "Old"
 
-    def test_list_zero_target_progress(self, client, db_session):
+    def test_list_zero_target_progress(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Zero Target", created_by="u1", country="GB",
             city="London", area="x", target_density_score=0,
@@ -290,11 +264,11 @@ class TestListCoverageRequests:
         db_session.add(req)
         db_session.commit()
 
-        resp = client.get(LIST_URL)
+        resp = client.get(LIST_URL, headers=auth_headers)
         data = resp.json()["requests"]
         assert data[0]["progress_percentage"] == 0
 
-    def test_list_completed_at_included(self, client, db_session):
+    def test_list_completed_at_included(self, client, auth_headers, db_session):
         completed_at = datetime(2025, 3, 15, 10, 0, 0)
         req = CoverageRequest(
             title="Done", created_by="u1", country="GB",
@@ -305,21 +279,9 @@ class TestListCoverageRequests:
         db_session.add(req)
         db_session.commit()
 
-        resp = client.get(LIST_URL)
+        resp = client.get(LIST_URL, headers=auth_headers)
         data = resp.json()["requests"]
         assert data[0]["completed_at"] is not None
-
-    def test_list_no_auth_required(self, client, db_session):
-        req = CoverageRequest(
-            title="No Auth", created_by="u1", country="GB",
-            city="London", area="x", target_density_score=50,
-            reward_amount=100, status="OPEN",
-        )
-        db_session.add(req)
-        db_session.commit()
-
-        resp = client.get(LIST_URL)
-        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -327,7 +289,7 @@ class TestListCoverageRequests:
 # ---------------------------------------------------------------------------
 
 class TestGetCoverageRequest:
-    def test_get_success(self, client, db_session):
+    def test_get_success(self, client, auth_headers, db_session):
         with patch("app.routers.coverage_requests.to_shape") as mock_to_shape:
             mock_polygon = MagicMock()
             mock_polygon.exterior.coords = [
@@ -351,7 +313,7 @@ class TestGetCoverageRequest:
             db_session.add(req)
             db_session.commit()
 
-            resp = client.get(f"{LIST_URL}/{req.id}")
+            resp = client.get(f"{LIST_URL}/{req.id}", headers=auth_headers)
             assert resp.status_code == 200
             body = resp.json()
             assert body["title"] == "Single Request"
@@ -369,11 +331,11 @@ class TestGetCoverageRequest:
             assert "area" in body
             assert body["area"]["type"] == "Polygon"
 
-    def test_get_not_found(self, client):
-        resp = client.get(f"{LIST_URL}/9999")
+    def test_get_not_found(self, client, auth_headers):
+        resp = client.get(f"{LIST_URL}/9999", headers=auth_headers)
         assert resp.status_code == 404
 
-    def test_get_with_contributors(self, client, db_session):
+    def test_get_with_contributors(self, client, auth_headers, db_session):
         with patch("app.routers.coverage_requests.to_shape") as mock_to_shape:
             mock_polygon = MagicMock()
             mock_polygon.exterior.coords = [
@@ -397,28 +359,8 @@ class TestGetCoverageRequest:
             db_session.add(contrib)
             db_session.commit()
 
-            resp = client.get(f"{LIST_URL}/{req.id}")
+            resp = client.get(f"{LIST_URL}/{req.id}", headers=auth_headers)
             assert resp.json()["contributors_count"] == 1
-
-    def test_get_no_auth_required(self, client, db_session):
-        with patch("app.routers.coverage_requests.to_shape") as mock_to_shape:
-            mock_polygon = MagicMock()
-            mock_polygon.exterior.coords = [
-                (0, 0), (1, 0), (1, 1), (0, 1), (0, 0)
-            ]
-            mock_to_shape.return_value = mock_polygon
-
-            req = CoverageRequest(
-                title="No Auth", created_by="u1",
-                country="GB", city="London",
-                area="x", target_density_score=50,
-                reward_amount=100, status="OPEN",
-            )
-            db_session.add(req)
-            db_session.commit()
-
-            resp = client.get(f"{LIST_URL}/{req.id}")
-            assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -428,7 +370,7 @@ class TestGetCoverageRequest:
 class TestUpdateCoverageRequest:
     UPDATE_URL = "/coverage-requests"
 
-    def test_update_title_and_description(self, client, db_session):
+    def test_update_title_and_description(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Original", created_by="u1",
             country="GB", city="London",
@@ -441,6 +383,7 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"title": "Updated", "description": "New desc"},
+            headers=auth_headers,
         )
         assert resp.status_code == 200
 
@@ -448,7 +391,7 @@ class TestUpdateCoverageRequest:
         assert req.title == "Updated"
         assert req.description == "New desc"
 
-    def test_update_reward_amount(self, client, db_session):
+    def test_update_reward_amount(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Reward Test", created_by="u1",
             country="GB", city="London",
@@ -461,13 +404,14 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"reward_amount": 200},
+            headers=auth_headers,
         )
         assert resp.status_code == 200
 
         db_session.refresh(req)
         assert float(req.reward_amount) == 200.0
 
-    def test_update_target_density_score(self, client, db_session):
+    def test_update_target_density_score(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Target Test", created_by="u1",
             country="GB", city="London",
@@ -481,12 +425,13 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"target_density_score": 80},
+            headers=auth_headers,
         )
         assert resp.status_code == 200
         db_session.refresh(req)
         assert req.target_density_score == 80
 
-    def test_update_status_to_cancelled(self, client, db_session):
+    def test_update_status_to_cancelled(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Cancel Test", created_by="u1",
             country="GB", city="London",
@@ -499,13 +444,14 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"status": "CANCELLED"},
+            headers=auth_headers,
         )
         assert resp.status_code == 200
         db_session.refresh(req)
         assert req.status == "CANCELLED"
         assert req.completed_at is not None
 
-    def test_update_completed_request_rejected(self, client, db_session):
+    def test_update_completed_request_rejected(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Completed", created_by="u1",
             country="GB", city="London",
@@ -519,17 +465,19 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"title": "Should not work"},
+            headers=auth_headers,
         )
         assert resp.status_code == 400
 
-    def test_update_not_found(self, client):
+    def test_update_not_found(self, client, auth_headers):
         resp = client.patch(
             f"{self.UPDATE_URL}/9999",
             json={"title": "Nope"},
+            headers=auth_headers,
         )
         assert resp.status_code == 404
 
-    def test_update_reward_cannot_decrease_after_contributions(self, client, db_session):
+    def test_update_reward_cannot_decrease_after_contributions(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Reward Drop", created_by="u1",
             country="GB", city="London",
@@ -549,10 +497,11 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"reward_amount": 50},
+            headers=auth_headers,
         )
         assert resp.status_code == 400
 
-    def test_update_reward_can_decrease_without_contributions(self, client, db_session):
+    def test_update_reward_can_decrease_without_contributions(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="No Contrib", created_by="u1",
             country="GB", city="London",
@@ -565,12 +514,13 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"reward_amount": 50},
+            headers=auth_headers,
         )
         assert resp.status_code == 200
         db_session.refresh(req)
         assert float(req.reward_amount) == 50.0
 
-    def test_update_target_cannot_be_lower_than_current(self, client, db_session):
+    def test_update_target_cannot_be_lower_than_current(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Target Drop", created_by="u1",
             country="GB", city="London",
@@ -584,10 +534,11 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"target_density_score": 20},
+            headers=auth_headers,
         )
         assert resp.status_code == 400
 
-    def test_update_invalid_status_rejected(self, client, db_session):
+    def test_update_invalid_status_rejected(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Bad Status", created_by="u1",
             country="GB", city="London",
@@ -600,24 +551,9 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"status": "INVALID"},
+            headers=auth_headers,
         )
         assert resp.status_code == 400
-
-    def test_update_no_auth_required(self, client, db_session):
-        req = CoverageRequest(
-            title="No Auth", created_by="u1",
-            country="GB", city="London",
-            area="x", target_density_score=50,
-            reward_amount=100, status="OPEN",
-        )
-        db_session.add(req)
-        db_session.commit()
-
-        resp = client.patch(
-            f"{self.UPDATE_URL}/{req.id}",
-            json={"title": "Updated"},
-        )
-        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -628,7 +564,7 @@ PROGRESS_URL = "/coverage-requests"
 
 
 class TestGetProgress:
-    def test_progress_success(self, client, db_session):
+    def test_progress_success(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Progress", created_by="u1",
             country="GB", city="London",
@@ -639,7 +575,7 @@ class TestGetProgress:
         db_session.add(req)
         db_session.commit()
 
-        resp = client.get(f"{PROGRESS_URL}/{req.id}/progress")
+        resp = client.get(f"{PROGRESS_URL}/{req.id}/progress", headers=auth_headers)
         assert resp.status_code == 200
         body = resp.json()
         assert body["request_id"] == req.id
@@ -650,7 +586,7 @@ class TestGetProgress:
         assert body["total_valid_readings"] == 0
         assert body["status"] == "OPEN"
 
-    def test_progress_zero_target(self, client, db_session):
+    def test_progress_zero_target(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Zero Target", created_by="u1",
             country="GB", city="London",
@@ -661,14 +597,14 @@ class TestGetProgress:
         db_session.add(req)
         db_session.commit()
 
-        resp = client.get(f"{PROGRESS_URL}/{req.id}/progress")
+        resp = client.get(f"{PROGRESS_URL}/{req.id}/progress", headers=auth_headers)
         assert resp.json()["progress_percentage"] == 0
 
-    def test_progress_not_found(self, client):
-        resp = client.get(f"{PROGRESS_URL}/9999/progress")
+    def test_progress_not_found(self, client, auth_headers):
+        resp = client.get(f"{PROGRESS_URL}/9999/progress", headers=auth_headers)
         assert resp.status_code == 404
 
-    def test_progress_empty_contributors(self, client, db_session):
+    def test_progress_empty_contributors(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="No Contribs", created_by="u1",
             country="GB", city="London",
@@ -678,11 +614,11 @@ class TestGetProgress:
         db_session.add(req)
         db_session.commit()
 
-        resp = client.get(f"{PROGRESS_URL}/{req.id}/progress")
+        resp = client.get(f"{PROGRESS_URL}/{req.id}/progress", headers=auth_headers)
         body = resp.json()
         assert body["contributors_count"] == 0
 
-    def test_progress_with_contributors_and_points(self, client, db_session):
+    def test_progress_with_contributors_and_points(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="With Data", created_by="u1",
             country="GB", city="London",
@@ -705,23 +641,10 @@ class TestGetProgress:
         db_session.add(point)
         db_session.commit()
 
-        resp = client.get(f"{PROGRESS_URL}/{req.id}/progress")
+        resp = client.get(f"{PROGRESS_URL}/{req.id}/progress", headers=auth_headers)
         body = resp.json()
         assert body["contributors_count"] == 1
         assert body["total_valid_readings"] == 1
-
-    def test_progress_no_auth_required(self, client, db_session):
-        req = CoverageRequest(
-            title="No Auth", created_by="u1",
-            country="GB", city="London",
-            area="x", target_density_score=50,
-            reward_amount=100, status="OPEN",
-        )
-        db_session.add(req)
-        db_session.commit()
-
-        resp = client.get(f"{PROGRESS_URL}/{req.id}/progress")
-        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -732,7 +655,7 @@ CONTRIB_URL = "/coverage-requests"
 
 
 class TestGetContributions:
-    def test_contributions_empty(self, client, db_session):
+    def test_contributions_empty(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="No Contribs", created_by="u1",
             country="GB", city="London",
@@ -742,13 +665,13 @@ class TestGetContributions:
         db_session.add(req)
         db_session.commit()
 
-        resp = client.get(f"{CONTRIB_URL}/{req.id}/contributions")
+        resp = client.get(f"{CONTRIB_URL}/{req.id}/contributions", headers=auth_headers)
         assert resp.status_code == 200
         body = resp.json()
         assert body["request_id"] == req.id
         assert body["contributors"] == []
 
-    def test_contributions_with_data(self, client, db_session):
+    def test_contributions_with_data(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="With Contribs", created_by="u1",
             country="GB", city="London",
@@ -771,14 +694,14 @@ class TestGetContributions:
         db_session.add_all(contribs)
         db_session.commit()
 
-        resp = client.get(f"{CONTRIB_URL}/{req.id}/contributions")
+        resp = client.get(f"{CONTRIB_URL}/{req.id}/contributions", headers=auth_headers)
         body = resp.json()
         assert len(body["contributors"]) == 2
         assert body["contributors"][0]["device_id"] == "device-a"
         assert body["contributors"][0]["total_readings"] == 10
         assert body["contributors"][0]["density_contribution"] == 0.5
 
-    def test_contributions_sorted_by_density_desc(self, client, db_session):
+    def test_contributions_sorted_by_density_desc(self, client, auth_headers, db_session):
         req = CoverageRequest(
             title="Sorted", created_by="u1",
             country="GB", city="London",
@@ -801,26 +724,13 @@ class TestGetContributions:
         db_session.add_all(contribs)
         db_session.commit()
 
-        resp = client.get(f"{CONTRIB_URL}/{req.id}/contributions")
+        resp = client.get(f"{CONTRIB_URL}/{req.id}/contributions", headers=auth_headers)
         devices = [c["device_id"] for c in resp.json()["contributors"]]
         assert devices == ["high", "low"]
 
-    def test_contributions_not_found(self, client):
-        resp = client.get(f"{CONTRIB_URL}/9999/contributions")
+    def test_contributions_not_found(self, client, auth_headers):
+        resp = client.get(f"{CONTRIB_URL}/9999/contributions", headers=auth_headers)
         assert resp.status_code == 404
-
-    def test_contributions_no_auth_required(self, client, db_session):
-        req = CoverageRequest(
-            title="No Auth", created_by="u1",
-            country="GB", city="London",
-            area="x", target_density_score=50,
-            reward_amount=100, status="OPEN",
-        )
-        db_session.add(req)
-        db_session.commit()
-
-        resp = client.get(f"{CONTRIB_URL}/{req.id}/contributions")
-        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------

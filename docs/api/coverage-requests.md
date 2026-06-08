@@ -8,7 +8,7 @@ Coverage requests allow users to create "bounties" for network coverage data col
 
 List all coverage requests with optional filters and sorting.
 
-**Auth required:** No
+**Auth required:** Yes
 
 ### Query Parameters
 
@@ -49,7 +49,7 @@ List all coverage requests with optional filters and sorting.
 
 Find coverage requests whose polygon areas are within a given radius of a point.
 
-**Auth required:** No
+**Auth required:** Yes
 
 Requires PostGIS (`ST_DWithin`).
 
@@ -74,7 +74,7 @@ Same structure as `GET /coverage-requests`.
 
 Get a single coverage request with its area as GeoJSON, contributor count, and progress percentage.
 
-**Auth required:** No
+**Auth required:** Yes
 
 ### Response `200`
 
@@ -120,7 +120,7 @@ Get a single coverage request with its area as GeoJSON, contributor count, and p
 
 Create a new coverage request.
 
-**Auth required:** No
+**Auth required:** Yes
 
 ### Request Body
 
@@ -173,7 +173,7 @@ The `area` field must be a valid GeoJSON Polygon with at least 3 distinct points
 
 Update a coverage request. Only `OPEN` or `CANCELLED` requests can be edited (not `COMPLETED`).
 
-**Auth required:** No
+**Auth required:** Yes
 
 ### Request Body
 
@@ -203,7 +203,7 @@ Update a coverage request. Only `OPEN` or `CANCELLED` requests can be edited (no
 
 Get progress statistics for a coverage request.
 
-**Auth required:** No
+**Auth required:** Yes
 
 ### Response `200`
 
@@ -225,7 +225,7 @@ Get progress statistics for a coverage request.
 
 List all contributors for a request, sorted by density contribution descending.
 
-**Auth required:** No
+**Auth required:** Yes
 
 ### Response `200`
 
