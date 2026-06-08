@@ -117,3 +117,16 @@ def sample_reading():
         "country": "GB",
         "city": "London",
     }
+
+@pytest.fixture
+def sample_device_id():
+    return "abc123"
+
+
+@pytest.fixture
+def sample_profile():
+    return {"username": "testuser"}
+
+@pytest.fixture
+def user(client):
+    return client.post("/api/account/create", json={"username": "user1"}).json()

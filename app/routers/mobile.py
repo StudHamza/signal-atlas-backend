@@ -114,18 +114,17 @@ def mobile_map(
             DeviceReading.latitude.isnot(None),
             DeviceReading.longitude.isnot(None),
         )
-        lat_cell = func.round(func.cast(DeviceReading.latitude, Numeric(9, 6)), 3)
-        lon_cell = func.round(func.cast(DeviceReading.longitude, Numeric(9, 6)), 3)
         rows = (
-            q.with_entities(
-                lat_cell.label("lat_cell"),
-                lon_cell.label("lon_cell"),
-                func.avg(DeviceReading.rsrp).label("mean_rsrp"),
-                func.avg(DeviceReading.rsrq).label("mean_rsrq"),
-            )
-            .group_by(lat_cell, lon_cell)
-            .all()  # no .limit() — all points within the requested radius are returned
+        q.with_entities(
+            DeviceReading.latitude.label("lat_cell"),
+            DeviceReading.longitude.label("lon_cell"),
+            func.avg(DeviceReading.rsrp).label("mean_rsrp"),
+            func.avg(DeviceReading.rsrq).label("mean_rsrq"),
         )
+        .group_by(DeviceReading.latitude, DeviceReading.longitude)
+        .limit(5000)
+        .all()
+        )   
         return MapResponse(
             points=[
                 MapPoint(
@@ -252,15 +251,23 @@ def delete_user_samples(
     Delete all samples submitted by a specific device and return how many were removed.
 
     `device_id` maps to the `source` column in `device_readings`.
+
+    Must skip readings that are linked to a coverage request
     """
     try:
         count = (
             db.query(func.count(DeviceReading.id))
-            .filter(DeviceReading.source == device_id)
+            .filter(
+                DeviceReading.source == device_id,
+                DeviceReading.request_id.is_(None)
+            )
             .scalar()
         ) or 0
 
-        db.query(DeviceReading).filter(DeviceReading.source == device_id).delete(
+        db.query(DeviceReading).filter(
+            DeviceReading.source == device_id, 
+            DeviceReading.request_id.is_(None)
+            ).delete(
             synchronize_session="fetch"
         )
         db.commit()

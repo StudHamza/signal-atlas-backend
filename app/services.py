@@ -6,8 +6,12 @@ from geoalchemy2.shape import from_shape
 from shapely.geometry import shape
 from app.models import (
     CoverageRequest,
-    CoverageRequestContribution
+    CoverageRequestContribution,
+    Profile,
+    WalletTransaction
 )
+from shapely.wkt import dumps
+from decimal import Decimal
 
 
 def create_request(db: Session, payload):
@@ -26,6 +30,7 @@ def create_request(db: Session, payload):
 
     # convert to PostGIS
     area_geography = from_shape(polygon_shape, srid=4326)
+    polygon_wkt = dumps(polygon_shape)
 
     # compute initial density score, score = unique points count * 0.01
     initial_points_count = db.execute(
@@ -33,14 +38,16 @@ def create_request(db: Session, payload):
             SELECT COUNT(DISTINCT CONCAT(latitude, ',', longitude))
             FROM device_readings
             WHERE ST_Covers(
-                :polygon::geography,
+                ST_GeogFromText(:polygon),
                 ST_SetSRID(
                     ST_MakePoint(longitude, latitude),
                     4326
                 )::geography
             )
         """),
-        {"polygon": area_geography.data}
+        {
+            "polygon": f"SRID=4326;{polygon_wkt}"
+        }
     ).scalar() or 0
 
     initial_density_score = initial_points_count * 0.01
@@ -86,20 +93,28 @@ def fetch_requests(db: Session, status=None, country=None, city=None, sort_by=No
     if city:
         query = query.filter(CoverageRequest.city == city)
 
+    # normalize
+    if sort_by:
+        sort_by = sort_by.strip().lower()
 
     # sorting
-    if sort_by == "reward_asc":
-        query = query.order_by(asc(CoverageRequest.reward_amount))
-
-    elif sort_by == "reward_desc":
+    if sort_by == "reward_amount":
         query = query.order_by(desc(CoverageRequest.reward_amount))
 
-    elif sort_by == "created_at_desc":
+    elif sort_by == "created_at":
         query = query.order_by(desc(CoverageRequest.created_at))
+
+    elif sort_by == "progress":
+        query = query.order_by(
+            desc(
+                CoverageRequest.current_density_score /
+                CoverageRequest.target_density_score
+            )
+        )
 
     else:
         # default
-        query = query.order_by(asc(CoverageRequest.created_at))
+        query = query.order_by(desc(CoverageRequest.created_at))
 
     requests = query.all()
 
@@ -135,7 +150,7 @@ def fetch_requests(db: Session, status=None, country=None, city=None, sort_by=No
 
             "status": request.status,
 
-            "created_at": request.created_at.isoformat(),
+            "created_at": request.created_at.isoformat() if request.created_at else None,
             "completed_at":
                 request.completed_at.isoformat()
                 if request.completed_at
@@ -231,3 +246,71 @@ def update_request(db: Session, request_id, payload):
         "message":
             "Coverage request updated successfully"
     }
+
+
+# --------------- Profiles and Wallets --------------- #
+
+def create_reward_transaction(
+    db,
+    user_id: str,
+    amount: Decimal,
+    description: str,
+) -> WalletTransaction:
+    profile = (
+        db.query(Profile)
+        .filter(Profile.id == user_id)
+        .first()
+    )
+
+    if not profile:
+        raise ValueError("Profile not found")
+
+    profile.credits += amount
+
+    transaction = WalletTransaction(
+        user_id=user_id,
+        amount=amount,
+        transaction_type="REWARD",
+        status="COMPLETED",
+        description=description,
+    )
+
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+
+    return transaction
+
+def create_withdrawal_transaction(
+    db,
+    user_id: str,
+    amount: Decimal,
+    description: str,
+) -> WalletTransaction:
+    profile = (
+        db.query(Profile)
+        .filter(Profile.id == user_id)
+        .first()
+    )
+
+    if not profile:
+        raise ValueError("Profile not found")
+
+    if profile.credits < amount:
+        raise ValueError("Insufficient credits")
+
+    profile.credits -= amount
+
+    transaction = WalletTransaction(
+        user_id=user_id,
+        amount=-amount,
+        transaction_type="WITHDRAWAL",
+        status="COMPLETED",
+        description=description,
+    )
+
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+
+    return transaction
