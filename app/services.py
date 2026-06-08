@@ -150,7 +150,7 @@ def fetch_requests(db: Session, status=None, country=None, city=None, sort_by=No
 
             "status": request.status,
 
-            "created_at": request.created_at.isoformat(),
+            "created_at": request.created_at.isoformat() if request.created_at else None,
             "completed_at":
                 request.completed_at.isoformat()
                 if request.completed_at

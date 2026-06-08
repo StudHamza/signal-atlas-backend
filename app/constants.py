@@ -1,4 +1,5 @@
 from datetime import timedelta
+import os
 
 # LTE "acceptable" signal floor in dBm
 GOOD_RSRP_THRESHOLD = -100
@@ -14,3 +15,8 @@ TRENDS_TRUNC: dict[str, str] = {
     "week": "day",
     "month": "day",
 }
+
+# Supabase Auth config
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")

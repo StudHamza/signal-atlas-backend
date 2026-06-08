@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from app.database import engine, Base
-from app.routers import system, ingest, mobile, profiles_wallets
+from app.routers import system, ingest, mobile, users, profiles_wallets
 try:
     from app.routers import coverage_requests
 except ImportError:
@@ -42,6 +42,7 @@ app.add_middleware(
 app.include_router(system.router)
 app.include_router(ingest.router)
 app.include_router(mobile.router)
+app.include_router(users.router)
 if coverage_requests is not None:
     app.include_router(coverage_requests.router)
 app.include_router(profiles_wallets.router)

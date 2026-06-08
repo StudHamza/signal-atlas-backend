@@ -8,8 +8,10 @@ from sqlalchemy import (
     REAL,
     ForeignKey,
     Numeric,
+    Text,
     UniqueConstraint
 )
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
 try:
@@ -175,38 +177,32 @@ class CoverageRequestPoint(Base):
 class Profile(Base):
     __tablename__ = "profiles"
 
-    id = Column(String(36), primary_key=True)
-
-    username = Column(String(50), unique=True, nullable=False, index=True)
-
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    username = Column(String(255), unique=True, nullable=True, index=True)
+    display_name = Column(Text, nullable=True)
+    avatar_url = Column(Text, nullable=True)
     credits = Column(Numeric(12, 2), nullable=False, default=0)
-
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class UserDevice(Base):
     __tablename__ = "user_devices"
 
     id = Column(Integer, primary_key=True)
-
-    user_id = Column(String(36), nullable=False, index=True)
-
-    device_id = Column(String(100), nullable=False, unique=True, index=True)
-
+    user_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    device_id = Column(String(255), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    last_seen_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    last_seen_at = Column(DateTime, default=datetime.utcnow)
 
 class WalletTransaction(Base):
     __tablename__ = "wallet_transactions"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(String(36), nullable=False, index=True)
-
+    user_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
     amount = Column(Numeric(12, 2), nullable=False)
-
     transaction_type = Column(String(30), nullable=False, index=True)
     status = Column(String(30), nullable=False, default="COMPLETED", index=True)
     description = Column(String(255))
-
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
