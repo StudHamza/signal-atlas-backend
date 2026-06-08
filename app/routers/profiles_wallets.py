@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from uuid import uuid4
+from uuid import UUID, uuid4
 from app.database import get_db
 from decimal import Decimal
 from datetime import datetime
@@ -28,7 +28,8 @@ from app.models import (
 
 router = APIRouter(prefix="/api")
 
-# LOGIN
+
+# LOGIN (Deprecated — use Supabase Auth instead)
 @router.post(
     "/auth/login",
     response_model=LoginResponse,
@@ -49,18 +50,19 @@ def login(
             detail="User not found"
         )
 
+    device_ids = [
+        d.device_id
+        for d in db.query(UserDevice)
+        .filter(UserDevice.user_id == profile.id)
+        .all()
+    ]
+
     return LoginResponse(
         profile=ProfileResponse(
-            id=profile.id,
+            id=str(profile.id),
             username=profile.username,
-            credits=profile.credits,
-            device_ids=[
-                d.device_id
-                for d in db.query(UserDevice)
-                .filter(UserDevice.user_id == profile.id)
-                .all()
-            ],
-            created_at=profile.created_at,
+            credits=float(profile.credits) if profile.credits else None,
+            created_at=profile.created_at.isoformat() if profile.created_at else None,
         )
     )
 
@@ -105,11 +107,10 @@ def get_account_by_device(
     return AccountByDeviceResponse(
         account_exists=True,
         profile=ProfileResponse(
-            id=profile.id,
+            id=str(profile.id),
             username=profile.username,
-            credits=profile.credits,
-            device_ids=device_ids,
-            created_at=profile.created_at,
+            credits=float(profile.credits) if profile.credits else None,
+            created_at=profile.created_at.isoformat() if profile.created_at else None,
         ),
     )
 
@@ -133,7 +134,7 @@ def create_account(
             status_code=409,
             detail="Username already exists",
         )
-    
+
     if request.device_id:
         existing_device = (
             db.query(UserDevice)
@@ -148,7 +149,7 @@ def create_account(
             )
 
     profile = Profile(
-        id=str(uuid4()),
+        id=uuid4(),
         username=request.username,
         credits=Decimal("0"),
     )
@@ -156,27 +157,23 @@ def create_account(
     db.add(profile)
     db.flush()
 
-    device_ids = []
-
     if request.device_id:
         device = UserDevice(
             user_id=profile.id,
             device_id=request.device_id,
         )
-
         db.add(device)
-        device_ids.append(request.device_id)
 
     db.commit()
     db.refresh(profile)
 
     return ProfileResponse(
-        id=profile.id,
+        id=str(profile.id),
         username=profile.username,
-        credits=profile.credits,
-        device_ids=device_ids,
-        created_at=profile.created_at,
+        credits=float(profile.credits) if profile.credits else None,
+        created_at=profile.created_at.isoformat() if profile.created_at else None,
     )
+
 
 # REGISTER DEVICE TO ACCOUNT
 @router.post(
@@ -187,9 +184,14 @@ def register_device(
     request: RegisterDeviceRequest,
     db: Session = Depends(get_db),
 ):
+    try:
+        user_uuid = UUID(request.user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user_id format")
+
     profile = (
         db.query(Profile)
-        .filter(Profile.id == request.user_id)
+        .filter(Profile.id == user_uuid)
         .first()
     )
 
@@ -206,23 +208,29 @@ def register_device(
             .first()
         )
 
-        if device_owner and device_owner.user_id != request.user_id:
+        if device_owner and device_owner.user_id != user_uuid:
             raise HTTPException(
                 status_code=409,
                 detail="Device already linked to another account",
             )
-    
+
     device = UserDevice(
-        user_id=request.user_id,
+        user_id=user_uuid,
         device_id=request.device_id,
     )
 
     db.add(device)
-
     db.commit()
     db.refresh(device)
 
-    return UserDeviceResponse.model_validate(device)
+    return UserDeviceResponse(
+        id=device.id,
+        user_id=str(device.user_id),
+        device_id=device.device_id,
+        created_at=device.created_at.isoformat() if device.created_at else None,
+        last_seen_at=device.last_seen_at.isoformat() if device.last_seen_at else None,
+    )
+
 
 # GET PROFILE
 @router.get(
@@ -233,9 +241,14 @@ def get_profile(
     id: str,
     db: Session = Depends(get_db),
 ):
+    try:
+        user_uuid = UUID(id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid id format")
+
     profile = (
         db.query(Profile)
-        .filter(Profile.id == id)
+        .filter(Profile.id == user_uuid)
         .first()
     )
 
@@ -255,12 +268,12 @@ def get_profile(
     ]
 
     return ProfileResponse(
-        id=profile.id,
+        id=str(profile.id),
         username=profile.username,
-        credits=profile.credits,
-        device_ids=device_ids,
-        created_at=profile.created_at,
+        credits=float(profile.credits) if profile.credits else None,
+        created_at=profile.created_at.isoformat() if profile.created_at else None,
     )
+
 
 # UPDATE USERNAME
 @router.patch(
@@ -272,9 +285,14 @@ def update_profile(
     request: UpdateProfileRequest,
     db: Session = Depends(get_db),
 ):
+    try:
+        user_uuid = UUID(id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid id format")
+
     profile = (
         db.query(Profile)
-        .filter(Profile.id == id)
+        .filter(Profile.id == user_uuid)
         .first()
     )
 
@@ -288,7 +306,7 @@ def update_profile(
         db.query(Profile)
         .filter(
             Profile.username == request.username,
-            Profile.id != id,
+            Profile.id != user_uuid,
         )
         .first()
     )
@@ -300,6 +318,7 @@ def update_profile(
         )
 
     profile.username = request.username
+    profile.updated_at = datetime.utcnow()
 
     db.commit()
     db.refresh(profile)
@@ -312,12 +331,12 @@ def update_profile(
     ]
 
     return ProfileResponse(
-        id=profile.id,
+        id=str(profile.id),
         username=profile.username,
-        credits=profile.credits,
-        device_ids=device_ids,
-        created_at=profile.created_at,
+        credits=float(profile.credits) if profile.credits else None,
+        created_at=profile.created_at.isoformat() if profile.created_at else None,
     )
+
 
 # GET WALLET DETAILS
 @router.get(
@@ -328,9 +347,14 @@ def get_wallet_details(
     profile_id: str,
     db: Session = Depends(get_db),
 ):
+    try:
+        user_uuid = UUID(profile_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid profile_id format")
+
     profile = (
         db.query(Profile)
-        .filter(Profile.id == profile_id)
+        .filter(Profile.id == user_uuid)
         .first()
     )
 
@@ -342,14 +366,15 @@ def get_wallet_details(
 
     transaction_count = (
         db.query(func.count(WalletTransaction.id))
-        .filter(WalletTransaction.user_id == profile_id)
+        .filter(WalletTransaction.user_id == user_uuid)
         .scalar()
     )
 
     return WalletDetailsResponse(
-        credits=profile.credits,
+        credits=float(profile.credits) if profile.credits else None,
         transaction_count=transaction_count,
     )
+
 
 # GET WALLET TRANSACTIONS
 @router.get(
@@ -365,9 +390,14 @@ def get_wallet_transactions(
     ),
     db: Session = Depends(get_db),
 ):
+    try:
+        user_uuid = UUID(profile_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid profile_id format")
+
     profile = (
         db.query(Profile)
-        .filter(Profile.id == profile_id)
+        .filter(Profile.id == user_uuid)
         .first()
     )
 
@@ -379,7 +409,7 @@ def get_wallet_transactions(
 
     transactions = (
         db.query(WalletTransaction)
-        .filter(WalletTransaction.user_id == profile_id)
+        .filter(WalletTransaction.user_id == user_uuid)
         .order_by(WalletTransaction.created_at.desc())
         .limit(limit)
         .all()
@@ -387,7 +417,15 @@ def get_wallet_transactions(
 
     return WalletTransactionsResponse(
         transactions=[
-            WalletTransactionResponse.model_validate(t)
+            WalletTransactionResponse(
+                id=t.id,
+                user_id=str(t.user_id),
+                amount=float(t.amount) if t.amount else None,
+                transaction_type=t.transaction_type,
+                status=t.status,
+                description=t.description,
+                created_at=t.created_at.isoformat() if t.created_at else None,
+            )
             for t in transactions
         ]
     )

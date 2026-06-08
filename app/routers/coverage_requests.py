@@ -120,7 +120,7 @@ def get_nearby_requests(
             "progress_percentage": progress,
             "status": r.status,
 
-            "created_at": r.created_at.isoformat(),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
             "completed_at": r.completed_at.isoformat() if r.completed_at else None
         })
 
@@ -235,7 +235,7 @@ def get_coverage_request(request_id: int, db: Session = Depends(get_db)):
         "contributors_count": contributors_count,
 
         "created_by": request.created_by,
-        "created_at": request.created_at.isoformat(),
+        "created_at": request.created_at.isoformat() if request.created_at else None,
         "completed_at":
             request.completed_at.isoformat()
             if request.completed_at
