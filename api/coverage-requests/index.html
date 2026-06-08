@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -1244,7 +1244,7 @@
 <hr />
 <h2 id="get-coverage-requests"><code>GET /coverage-requests</code></h2>
 <p>List all coverage requests with optional filters and sorting.</p>
-<p><strong>Auth required:</strong> No</p>
+<p><strong>Auth required:</strong> Yes</p>
 <h3 id="query-parameters">Query Parameters</h3>
 <table>
 <thead>
@@ -1301,7 +1301,7 @@
 <hr />
 <h2 id="get-coverage-requestsnearby"><code>GET /coverage-requests/nearby</code></h2>
 <p>Find coverage requests whose polygon areas are within a given radius of a point.</p>
-<p><strong>Auth required:</strong> No</p>
+<p><strong>Auth required:</strong> Yes</p>
 <p>Requires PostGIS (<code>ST_DWithin</code>).</p>
 <h3 id="query-parameters_1">Query Parameters</h3>
 <table>
@@ -1357,7 +1357,7 @@
 <hr />
 <h2 id="get-coverage-requestsrequest_id"><code>GET /coverage-requests/{request_id}</code></h2>
 <p>Get a single coverage request with its area as GeoJSON, contributor count, and progress percentage.</p>
-<p><strong>Auth required:</strong> No</p>
+<p><strong>Auth required:</strong> Yes</p>
 <h3 id="response-200_2">Response <code>200</code></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
@@ -1393,7 +1393,7 @@
 <hr />
 <h2 id="post-coverage-requests"><code>POST /coverage-requests</code></h2>
 <p>Create a new coverage request.</p>
-<p><strong>Auth required:</strong> No</p>
+<p><strong>Auth required:</strong> Yes</p>
 <h3 id="request-body">Request Body</h3>
 <table>
 <thead>
@@ -1481,7 +1481,7 @@
 <hr />
 <h2 id="patch-coverage-requestsrequest_id"><code>PATCH /coverage-requests/{request_id}</code></h2>
 <p>Update a coverage request. Only <code>OPEN</code> or <code>CANCELLED</code> requests can be edited (not <code>COMPLETED</code>).</p>
-<p><strong>Auth required:</strong> No</p>
+<p><strong>Auth required:</strong> Yes</p>
 <h3 id="request-body_1">Request Body</h3>
 <table>
 <thead>
@@ -1528,7 +1528,7 @@
 <hr />
 <h2 id="get-coverage-requestsrequest_idprogress"><code>GET /coverage-requests/{request_id}/progress</code></h2>
 <p>Get progress statistics for a coverage request.</p>
-<p><strong>Auth required:</strong> No</p>
+<p><strong>Auth required:</strong> Yes</p>
 <h3 id="response-200_5">Response <code>200</code></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="p">{</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">&quot;request_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
@@ -1543,7 +1543,7 @@
 <hr />
 <h2 id="get-coverage-requestsrequest_idcontributions"><code>GET /coverage-requests/{request_id}/contributions</code></h2>
 <p>List all contributors for a request, sorted by density contribution descending.</p>
-<p><strong>Auth required:</strong> No</p>
+<p><strong>Auth required:</strong> Yes</p>
 <h3 id="response-200_6">Response <code>200</code></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="p">{</span>
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">&quot;request_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
