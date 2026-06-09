@@ -9,6 +9,7 @@ from app.models import (
     CoverageRequestContribution
 )
 from decimal import Decimal
+from sqlalchemy import or_, and_
 from app.services import create_reward_transaction 
 
 # --------------- FETCH PENDING READINGS --------------- #
@@ -16,9 +17,12 @@ def fetch_pending_readings(db, limit=1000):
     readings = (
         db.query(DeviceReading)
         .filter(
-            or_(
-                DeviceReading.processing_status == "PENDING",
-                DeviceReading.processing_status.is_(None)
+            and_(
+                or_(
+                    DeviceReading.processing_status == "PENDING",
+                    DeviceReading.processing_status.is_(None)
+                ),
+                DeviceReading.source != "predicted"
             )
         )
         .order_by(DeviceReading.created_at.asc())
