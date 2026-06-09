@@ -7,7 +7,7 @@ from services.db import (
     complete_request,
     find_matching_requests
 )
-
+from app.database import SessionLocal
 from services.scoring import (
     compute_reading_score_delta
 )
