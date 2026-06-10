@@ -1,16 +1,18 @@
 from datetime import datetime
-from sqlalchemy import select, or_
-from sqlalchemy.dialects.postgresql import insert
+from decimal import Decimal
+from sqlalchemy import and_, or_
 from app.database import SessionLocal
+
 from app.models import (
     DeviceReading,
-    UserDevice,
     CoverageRequest,
-    CoverageRequestContribution
+    CoverageRequestContribution,
+    Profile,
+    UserDevice,
+    WalletTransaction,
 )
-from decimal import Decimal
-from sqlalchemy import or_, and_
-from app.services import create_reward_transaction 
+from app.services import create_reward_transaction
+
 
 # --------------- FETCH PENDING READINGS --------------- #
 def fetch_pending_readings(db, limit=1000):
@@ -130,7 +132,7 @@ def complete_request(db, request_id):
     request = (
         db.query(CoverageRequest)
         .filter(CoverageRequest.id == request_id)
-        .with_for_update()   # add this
+        .with_for_update()
         .first()
     )
 
@@ -140,16 +142,54 @@ def complete_request(db, request_id):
     request.status = "COMPLETED"
     request.completed_at = datetime.utcnow()
 
-    db.flush()  # write status before distributing
+    reward_amount = float(request.reward_amount)
 
-    distribute_rewards(db, request)
+    if reward_amount <= 0:
+        db.flush()
+        return
 
-
-# --------------- DISTRIBUTE REWARD --------------- #
-def distribute_rewards(db, request):
     contributions = (
         db.query(CoverageRequestContribution)
-        .filter(CoverageRequestContribution.request_id == request.id)
+        .filter(CoverageRequestContribution.request_id == request_id)
+        .all()
+    )
+
+    if not contributions:
+        db.flush()
+        return
+
+    total_density = sum(
+        c.density_contribution for c in contributions
+    )
+
+    if total_density <= 0:
+        db.flush()
+        return
+
+    for contribution in contributions:
+        share = contribution.density_contribution / total_density
+        contribution.reward_share = round(share, 6)
+
+    db.flush()
+
+
+# --------------- DISTRIBUTE REWARDS --------------- #
+def distribute_rewards(db, request_id):
+    request = (
+        db.query(CoverageRequest)
+        .filter(CoverageRequest.id == request_id)
+        .first()
+    )
+
+    if not request or request.status != "COMPLETED":
+        return
+
+    contributions = (
+        db.query(CoverageRequestContribution)
+        .filter(
+            CoverageRequestContribution.request_id == request_id,
+            CoverageRequestContribution.reward_share > 0,
+        )
         .all()
     )
 
@@ -170,7 +210,6 @@ def distribute_rewards(db, request):
         if reward_amount <= 0:
             continue
 
-        # look up the user_id from device_id
         device = (
             db.query(UserDevice)
             .filter(UserDevice.device_id == contribution.device_id)
@@ -178,7 +217,7 @@ def distribute_rewards(db, request):
         )
 
         if not device:
-            continue  # device was never linked to an account
+            continue
 
         contribution.reward_share = float(share)
 
@@ -190,5 +229,4 @@ def distribute_rewards(db, request):
                 description=f"Reward for coverage request #{request.id}",
             )
         except ValueError:
-            # profile deleted between contribution and completion, skip
             continue

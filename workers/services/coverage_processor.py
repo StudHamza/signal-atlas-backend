@@ -1,3 +1,5 @@
+from app.database import SessionLocal
+
 from services.db import (
     fetch_pending_readings,
     mark_reading_processed,
@@ -5,11 +7,12 @@ from services.db import (
     update_request_score,
     upsert_contribution,
     complete_request,
-    find_matching_requests
+    distribute_rewards,
 )
-from app.database import SessionLocal
+
 from services.scoring import (
-    compute_reading_score_delta
+    compute_reading_score_delta,
+    find_matching_requests,
 )
 
 
@@ -24,6 +27,7 @@ def process_pending_readings():
             return
 
         for reading in readings:
+            completed_ids: set[int] = set()
 
             try:
 
@@ -92,9 +96,14 @@ def process_pending_readings():
                         ):
 
                             complete_request(db, request.id)
+                            completed_ids.add(request.id)
 
                     # mark reading fully processed
                     mark_reading_processed(db, reading.id)
+
+                # distribute rewards outside savepoint
+                for rid in completed_ids:
+                    distribute_rewards(db, rid)
 
             except Exception as e:
 

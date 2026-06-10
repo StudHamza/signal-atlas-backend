@@ -1,9 +1,14 @@
 import os
 import select
+import sys
 import time
 
 import psycopg2
 import psycopg2.extensions
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 from services.coverage_processor import process_pending_readings
 
