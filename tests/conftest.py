@@ -80,6 +80,11 @@ def auth_headers():
     return {"X-API-Key": "test-key"}
 
 @pytest.fixture()
+def jwt_headers(test_user):
+    _, headers = test_user
+    return headers
+
+@pytest.fixture()
 def sample_coverage_request():
     return {
         "title": "Downtown London Coverage",
@@ -127,6 +132,29 @@ def sample_device_id():
 def sample_profile():
     return {"username": "testuser"}
 
+
+from uuid import uuid4
+from decimal import Decimal
+from app.models import Profile, UserDevice
+from app.auth import UserInfo, get_current_user, require_user
+
 @pytest.fixture
-def user(client):
-    return client.post("/api/account/create", json={"username": "user1"}).json()
+def test_user(db_session):
+    """Create a test user directly in DB and return (user_id, auth_headers).
+    Overrides require_user dependency to bypass JWT validation for tests.
+    """
+    uid = uuid4()
+    profile = Profile(id=uid, username="testuser", credits=Decimal("0"))
+    db_session.add(profile)
+    db_session.commit()
+    db_session.refresh(profile)
+
+    def _override():
+        return UserInfo(id=uid, email="test@example.com")
+    app.dependency_overrides[require_user] = _override
+    app.dependency_overrides[get_current_user] = _override
+
+    yield str(uid), {"X-API-Key": "test-key", "Authorization": "Bearer test-token"}
+
+    app.dependency_overrides.pop(require_user, None)
+    app.dependency_overrides.pop(get_current_user, None)
