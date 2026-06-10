@@ -2,10 +2,15 @@ from datetime import datetime
 from sqlalchemy import select, or_
 from sqlalchemy.dialects.postgresql import insert
 from app.database import SessionLocal
+from decimal import Decimal
+
 from app.models import (
     DeviceReading,
     CoverageRequest,
-    CoverageRequestContribution
+    CoverageRequestContribution,
+    Profile,
+    UserDevice,
+    WalletTransaction,
 )
 
 # --------------- FETCH PENDING READINGS --------------- #
@@ -123,6 +128,7 @@ def complete_request(db, request_id):
     request = (
         db.query(CoverageRequest)
         .filter(CoverageRequest.id == request_id)
+        .with_for_update()
         .first()
     )
 
@@ -134,3 +140,110 @@ def complete_request(db, request_id):
 
     request.status = "COMPLETED"
     request.completed_at = datetime.utcnow()
+
+    reward_amount = float(request.reward_amount)
+
+    if reward_amount <= 0:
+        db.flush()
+        return
+
+    contributions = (
+        db.query(CoverageRequestContribution)
+        .filter(CoverageRequestContribution.request_id == request_id)
+        .all()
+    )
+
+    if not contributions:
+        db.flush()
+        return
+
+    total_density = sum(
+        c.density_contribution for c in contributions
+    )
+
+    if total_density <= 0:
+        db.flush()
+        return
+
+    for contribution in contributions:
+        share = contribution.density_contribution / total_density
+        contribution.reward_share = round(share, 6)
+
+    db.flush()
+
+
+# --------------- DISTRIBUTE REWARDS --------------- #
+def distribute_rewards(db, request_id):
+    request = (
+        db.query(CoverageRequest)
+        .filter(CoverageRequest.id == request_id)
+        .first()
+    )
+
+    if not request or request.status != "COMPLETED":
+        return
+
+    reward_amount = float(request.reward_amount)
+
+    if reward_amount <= 0:
+        return
+
+    contributions = (
+        db.query(CoverageRequestContribution)
+        .filter(
+            CoverageRequestContribution.request_id == request_id,
+            CoverageRequestContribution.reward_share > 0,
+        )
+        .all()
+    )
+
+    if not contributions:
+        return
+
+    for contribution in contributions:
+        device = (
+            db.query(UserDevice)
+            .filter(UserDevice.device_id == contribution.device_id)
+            .first()
+        )
+
+        if not device:
+            continue
+
+        user_reward = round(
+            contribution.reward_share * reward_amount, 2
+        )
+
+        if user_reward <= 0:
+            continue
+
+        profile = (
+            db.query(Profile)
+            .filter(Profile.id == device.user_id)
+            .first()
+        )
+
+        if not profile:
+            continue
+
+        profile.credits += Decimal(str(user_reward))
+
+        transaction = WalletTransaction(
+            user_id=device.user_id,
+            amount=Decimal(str(user_reward)),
+            transaction_type="REWARD",
+            status="COMPLETED",
+            description=(
+                f"Reward for coverage request #{request_id}"
+            ),
+        )
+
+        db.add(transaction)
+
+        print(
+            f"[REWARD] user={device.user_id} "
+            f"request_id={request_id} "
+            f"amount={user_reward}"
+        )
+
+    db.commit()
