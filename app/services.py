@@ -276,8 +276,7 @@ def create_reward_transaction(
     )
 
     db.add(transaction)
-    db.commit()
-    db.refresh(transaction)
+    db.flush()
 
     return transaction
 
@@ -310,7 +309,6 @@ def create_withdrawal_transaction(
     )
 
     db.add(transaction)
-    db.commit()
-    db.refresh(transaction)
+    db.flush()
 
     return transaction

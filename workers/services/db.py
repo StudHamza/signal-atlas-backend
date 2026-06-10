@@ -1,8 +1,7 @@
 from datetime import datetime
-from sqlalchemy import select, or_
-from sqlalchemy.dialects.postgresql import insert
-from app.database import SessionLocal
 from decimal import Decimal
+from sqlalchemy import and_, or_
+from app.database import SessionLocal
 
 from app.models import (
     DeviceReading,
@@ -12,15 +11,20 @@ from app.models import (
     UserDevice,
     WalletTransaction,
 )
+from app.services import create_reward_transaction
+
 
 # --------------- FETCH PENDING READINGS --------------- #
 def fetch_pending_readings(db, limit=1000):
     readings = (
         db.query(DeviceReading)
         .filter(
-            or_(
-                DeviceReading.processing_status == "PENDING",
-                DeviceReading.processing_status.is_(None)
+            and_(
+                or_(
+                    DeviceReading.processing_status == "PENDING",
+                    DeviceReading.processing_status.is_(None)
+                ),
+                DeviceReading.source != "predicted"
             )
         )
         .order_by(DeviceReading.created_at.asc())
@@ -132,10 +136,7 @@ def complete_request(db, request_id):
         .first()
     )
 
-    if not request:
-        return
-
-    if request.status == "COMPLETED":
+    if not request or request.status == "COMPLETED":
         return
 
     request.status = "COMPLETED"
@@ -183,11 +184,6 @@ def distribute_rewards(db, request_id):
     if not request or request.status != "COMPLETED":
         return
 
-    reward_amount = float(request.reward_amount)
-
-    if reward_amount <= 0:
-        return
-
     contributions = (
         db.query(CoverageRequestContribution)
         .filter(
@@ -200,7 +196,20 @@ def distribute_rewards(db, request_id):
     if not contributions:
         return
 
+    total_density = sum(c.density_contribution for c in contributions)
+
+    if total_density <= 0:
+        return
+
+    reward_pool = Decimal(str(request.reward_amount))
+
     for contribution in contributions:
+        share = Decimal(str(contribution.density_contribution)) / Decimal(str(total_density))
+        reward_amount = (reward_pool * share).quantize(Decimal("0.01"))
+
+        if reward_amount <= 0:
+            continue
+
         device = (
             db.query(UserDevice)
             .filter(UserDevice.device_id == contribution.device_id)
@@ -210,40 +219,14 @@ def distribute_rewards(db, request_id):
         if not device:
             continue
 
-        user_reward = round(
-            contribution.reward_share * reward_amount, 2
-        )
+        contribution.reward_share = float(share)
 
-        if user_reward <= 0:
+        try:
+            create_reward_transaction(
+                db=db,
+                user_id=device.user_id,
+                amount=reward_amount,
+                description=f"Reward for coverage request #{request.id}",
+            )
+        except ValueError:
             continue
-
-        profile = (
-            db.query(Profile)
-            .filter(Profile.id == device.user_id)
-            .first()
-        )
-
-        if not profile:
-            continue
-
-        profile.credits += Decimal(str(user_reward))
-
-        transaction = WalletTransaction(
-            user_id=device.user_id,
-            amount=Decimal(str(user_reward)),
-            transaction_type="REWARD",
-            status="COMPLETED",
-            description=(
-                f"Reward for coverage request #{request_id}"
-            ),
-        )
-
-        db.add(transaction)
-
-        print(
-            f"[REWARD] user={device.user_id} "
-            f"request_id={request_id} "
-            f"amount={user_reward}"
-        )
-
-    db.commit()
