@@ -133,7 +133,7 @@ class CreateCoverageRequest(BaseModel):
     reward_amount: float
     target_density_score: float
     area: PolygonGeometry
-    created_by: str
+    created_by: Optional[str] = None
 
 
 class UpdateCoverageRequest(BaseModel):
@@ -209,22 +209,59 @@ class AccountByDeviceResponse(BaseModel):
     account_exists: bool
     profile: ProfileResponse | None = None
 
-class LoginRequest(BaseModel):
+class LegacyLoginRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
 
-class LoginResponse(BaseModel):
+class LegacyLoginResponse(BaseModel):
     profile: ProfileResponse
 
-class CreateAccountRequest(BaseModel):
+class LegacyCreateAccountRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     device_id: Optional[str] = Field(default=None, max_length=100)
 
-class UpdateProfileRequest(BaseModel):
+class LegacyUpdateProfileRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
 
-class RegisterDeviceRequest(BaseModel):
+class LegacyRegisterDeviceRequest(BaseModel):
     user_id: str
     device_id: str = Field(..., max_length=100)
+
+# New Auth schemas
+
+class AuthRegisterRequest(BaseModel):
+    email: str = Field(..., max_length=255)
+    password: str = Field(..., min_length=6, max_length=128)
+    username: str = Field(..., min_length=3, max_length=50)
+    device_id: Optional[str] = Field(default=None, max_length=100)
+
+class AuthLoginRequest(BaseModel):
+    email: str = Field(..., max_length=255)
+    password: str = Field(..., max_length=128)
+    device_id: Optional[str] = Field(default=None, max_length=100)
+
+class AuthRefreshRequest(BaseModel):
+    refresh_token: str
+
+class AuthTokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    expires_in: int
+    token_type: str = "bearer"
+    user: ProfileResponse
+
+class ProfileMinimalResponse(BaseModel):
+    id: str
+    username: Optional[str] = None
+
+class DeviceCheckRequest(BaseModel):
+    device_id: str = Field(..., max_length=100)
+
+class DeviceCheckResponse(BaseModel):
+    has_account: bool
+    profile: Optional[ProfileMinimalResponse] = None
+
+class UpdateProfileRequest(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
 
 class UserDeviceResponse(BaseModel):
     id: int

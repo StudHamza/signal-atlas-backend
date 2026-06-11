@@ -33,63 +33,54 @@ MOCK_CREATE_RESPONSE = {
 
 
 class TestCreateCoverageRequest:
-    def test_create_success(self, client, auth_headers, sample_coverage_request):
+    def _headers(self, test_user):
+        _, h = test_user
+        return h
+
+    def test_create_success(self, client, test_user, sample_coverage_request):
+        headers = self._headers(test_user)
         with patch("app.routers.coverage_requests.create_request") as mock_create:
             mock_create.return_value = MOCK_CREATE_RESPONSE
-
-            resp = client.post(CREATE_URL, json=sample_coverage_request, headers=auth_headers)
+            resp = client.post(CREATE_URL, json=sample_coverage_request, headers=headers)
             assert resp.status_code == 200
             body = resp.json()
             assert body["message"] == "Coverage request created successfully"
             assert body["request_id"] == 1
             assert body["status"] == "OPEN"
 
-    def test_create_invalid_polygon_empty_coords(self, client, auth_headers):
+    def test_create_invalid_polygon_empty_coords(self, client, test_user):
+        headers = self._headers(test_user)
         payload = {
-            "title": "Test",
-            "country": "GB",
-            "city": "London",
-            "reward_amount": 100,
-            "target_density_score": 50,
+            "title": "Test", "country": "GB", "city": "London",
+            "reward_amount": 100, "target_density_score": 50,
             "area": {"type": "Polygon", "coordinates": []},
-            "created_by": "user-1",
         }
-        resp = client.post(CREATE_URL, json=payload, headers=auth_headers)
+        resp = client.post(CREATE_URL, json=payload, headers=headers)
         assert resp.status_code == 400
 
-    def test_create_polygon_too_few_points(self, client, auth_headers):
+    def test_create_polygon_too_few_points(self, client, test_user):
+        headers = self._headers(test_user)
         payload = {
-            "title": "Test",
-            "country": "GB",
-            "city": "London",
-            "reward_amount": 100,
-            "target_density_score": 50,
-            "area": {
-                "type": "Polygon",
-                "coordinates": [[[0, 0], [1, 0], [0, 0]]],
-            },
-            "created_by": "user-1",
+            "title": "Test", "country": "GB", "city": "London",
+            "reward_amount": 100, "target_density_score": 50,
+            "area": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [0, 0]]]},
         }
-        resp = client.post(CREATE_URL, json=payload, headers=auth_headers)
+        resp = client.post(CREATE_URL, json=payload, headers=headers)
         assert resp.status_code == 400
 
-    def test_create_missing_required_fields_return_422(self, client, auth_headers):
-        resp = client.post(CREATE_URL, json={}, headers=auth_headers)
+    def test_create_missing_required_fields_return_422(self, client, test_user):
+        headers = self._headers(test_user)
+        resp = client.post(CREATE_URL, json={}, headers=headers)
         assert resp.status_code == 422
 
-    def test_create_missing_title(self, client, auth_headers):
+    def test_create_missing_title(self, client, test_user):
+        headers = self._headers(test_user)
         payload = {
-            "country": "GB",
-            "city": "London",
-            "reward_amount": 100,
-            "target_density_score": 50,
-            "area": {
-                "type": "Polygon",
-                "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
-            },
-            "created_by": "user-1",
+            "country": "GB", "city": "London",
+            "reward_amount": 100, "target_density_score": 50,
+            "area": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]},
         }
-        resp = client.post(CREATE_URL, json=payload, headers=auth_headers)
+        resp = client.post(CREATE_URL, json=payload, headers=headers)
         assert resp.status_code == 422
 
 
@@ -370,9 +361,10 @@ class TestGetCoverageRequest:
 class TestUpdateCoverageRequest:
     UPDATE_URL = "/coverage-requests"
 
-    def test_update_title_and_description(self, client, auth_headers, db_session):
+    def test_update_title_and_description(self, client, jwt_headers, db_session, test_user):
+        uid, _ = test_user
         req = CoverageRequest(
-            title="Original", created_by="u1",
+            title="Original", created_by=uid,
             country="GB", city="London",
             area="x", target_density_score=50,
             reward_amount=100, status="OPEN",
@@ -383,7 +375,7 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"title": "Updated", "description": "New desc"},
-            headers=auth_headers,
+            headers=jwt_headers,
         )
         assert resp.status_code == 200
 
@@ -391,9 +383,10 @@ class TestUpdateCoverageRequest:
         assert req.title == "Updated"
         assert req.description == "New desc"
 
-    def test_update_reward_amount(self, client, auth_headers, db_session):
+    def test_update_reward_amount(self, client, jwt_headers, db_session, test_user):
+        uid, _ = test_user
         req = CoverageRequest(
-            title="Reward Test", created_by="u1",
+            title="Reward Test", created_by=uid,
             country="GB", city="London",
             area="x", target_density_score=50,
             reward_amount=100, status="OPEN",
@@ -404,16 +397,17 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"reward_amount": 200},
-            headers=auth_headers,
+            headers=jwt_headers,
         )
         assert resp.status_code == 200
 
         db_session.refresh(req)
         assert float(req.reward_amount) == 200.0
 
-    def test_update_target_density_score(self, client, auth_headers, db_session):
+    def test_update_target_density_score(self, client, jwt_headers, db_session, test_user):
+        uid, _ = test_user
         req = CoverageRequest(
-            title="Target Test", created_by="u1",
+            title="Target Test", created_by=uid,
             country="GB", city="London",
             area="x", current_density_score=20,
             target_density_score=50, reward_amount=100,
@@ -425,15 +419,16 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"target_density_score": 80},
-            headers=auth_headers,
+            headers=jwt_headers,
         )
         assert resp.status_code == 200
         db_session.refresh(req)
         assert req.target_density_score == 80
 
-    def test_update_status_to_cancelled(self, client, auth_headers, db_session):
+    def test_update_status_to_cancelled(self, client, jwt_headers, db_session, test_user):
+        uid, _ = test_user
         req = CoverageRequest(
-            title="Cancel Test", created_by="u1",
+            title="Cancel Test", created_by=uid,
             country="GB", city="London",
             area="x", target_density_score=50,
             reward_amount=100, status="OPEN",
@@ -444,16 +439,17 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"status": "CANCELLED"},
-            headers=auth_headers,
+            headers=jwt_headers,
         )
         assert resp.status_code == 200
         db_session.refresh(req)
         assert req.status == "CANCELLED"
         assert req.completed_at is not None
 
-    def test_update_completed_request_rejected(self, client, auth_headers, db_session):
+    def test_update_completed_request_rejected(self, client, jwt_headers, db_session, test_user):
+        uid, _ = test_user
         req = CoverageRequest(
-            title="Completed", created_by="u1",
+            title="Completed", created_by=uid,
             country="GB", city="London",
             area="x", target_density_score=50,
             reward_amount=100, status="COMPLETED",
@@ -465,21 +461,23 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"title": "Should not work"},
-            headers=auth_headers,
+            headers=jwt_headers,
         )
         assert resp.status_code == 400
 
-    def test_update_not_found(self, client, auth_headers):
+    def test_update_not_found(self, client, jwt_headers, test_user):
+        uid, _ = test_user
         resp = client.patch(
             f"{self.UPDATE_URL}/9999",
             json={"title": "Nope"},
-            headers=auth_headers,
+            headers=jwt_headers,
         )
         assert resp.status_code == 404
 
-    def test_update_reward_cannot_decrease_after_contributions(self, client, auth_headers, db_session):
+    def test_update_reward_cannot_decrease_after_contributions(self, client, jwt_headers, db_session, test_user):
+        uid, _ = test_user
         req = CoverageRequest(
-            title="Reward Drop", created_by="u1",
+            title="Reward Drop", created_by=uid,
             country="GB", city="London",
             area="x", target_density_score=50,
             reward_amount=100, status="OPEN",
@@ -497,13 +495,14 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"reward_amount": 50},
-            headers=auth_headers,
+            headers=jwt_headers,
         )
         assert resp.status_code == 400
 
-    def test_update_reward_can_decrease_without_contributions(self, client, auth_headers, db_session):
+    def test_update_reward_can_decrease_without_contributions(self, client, jwt_headers, db_session, test_user):
+        uid, _ = test_user
         req = CoverageRequest(
-            title="No Contrib", created_by="u1",
+            title="No Contrib", created_by=uid,
             country="GB", city="London",
             area="x", target_density_score=50,
             reward_amount=100, status="OPEN",
@@ -514,15 +513,16 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"reward_amount": 50},
-            headers=auth_headers,
+            headers=jwt_headers,
         )
         assert resp.status_code == 200
         db_session.refresh(req)
         assert float(req.reward_amount) == 50.0
 
-    def test_update_target_cannot_be_lower_than_current(self, client, auth_headers, db_session):
+    def test_update_target_cannot_be_lower_than_current(self, client, jwt_headers, db_session, test_user):
+        uid, _ = test_user
         req = CoverageRequest(
-            title="Target Drop", created_by="u1",
+            title="Target Drop", created_by=uid,
             country="GB", city="London",
             area="x", current_density_score=30,
             target_density_score=50, reward_amount=100,
@@ -534,13 +534,14 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"target_density_score": 20},
-            headers=auth_headers,
+            headers=jwt_headers,
         )
         assert resp.status_code == 400
 
-    def test_update_invalid_status_rejected(self, client, auth_headers, db_session):
+    def test_update_invalid_status_rejected(self, client, jwt_headers, db_session, test_user):
+        uid, _ = test_user
         req = CoverageRequest(
-            title="Bad Status", created_by="u1",
+            title="Bad Status", created_by=uid,
             country="GB", city="London",
             area="x", target_density_score=50,
             reward_amount=100, status="OPEN",
@@ -551,7 +552,7 @@ class TestUpdateCoverageRequest:
         resp = client.patch(
             f"{self.UPDATE_URL}/{req.id}",
             json={"status": "INVALID"},
-            headers=auth_headers,
+            headers=jwt_headers,
         )
         assert resp.status_code == 400
 

@@ -88,7 +88,23 @@ def register_device(
     db: Session = Depends(get_db),
     user: UserInfo = Depends(require_user),
 ):
-    """Register a device (by device_id) under the authenticated user."""
+    """Register a device (by device_id) under the authenticated user.
+    A device can only be linked to one account at a time.
+    """
+    existing_elsewhere = (
+        db.query(UserDevice)
+        .filter(
+            UserDevice.device_id == payload.device_id,
+            UserDevice.user_id != user.id,
+        )
+        .first()
+    )
+    if existing_elsewhere:
+        raise HTTPException(
+            status_code=409,
+            detail="Device already linked to another account",
+        )
+
     existing = (
         db.query(UserDevice)
         .filter(
@@ -148,6 +164,7 @@ def _profile_to_response(p: Profile) -> ProfileResponse:
 def _device_to_response(d: UserDevice) -> UserDeviceResponse:
     return UserDeviceResponse(
         id=d.id,
+        user_id=str(d.user_id),
         device_id=d.device_id,
         created_at=d.created_at.isoformat() if d.created_at else None,
         last_seen_at=d.last_seen_at.isoformat() if d.last_seen_at else None,
