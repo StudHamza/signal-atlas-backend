@@ -176,6 +176,6 @@ def reading_to_response(r: DeviceReading) -> NetworkDataResponse:
         rsrq_uncertainty=r.rsrq_uncertainty,
         rsrp_uncertainty=r.rsrp_uncertainty,
         gps_accuracy=r.gps_accuracy,
-        created_at=r.created_at.isoformat(),
+        created_at=r.created_at.isoformat() if r.created_at else None,
         request_id=r.request_id,
     )
