@@ -29,9 +29,10 @@ SUPABASE_AUTH_URL = f"{SUPABASE_URL}/auth/v1"
 
 
 def _supabase_headers() -> dict:
+    key = SUPABASE_SERVICE_ROLE_KEY or ""
     return {
-        "apikey": SUPABASE_SERVICE_ROLE_KEY or "",
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY or ""}",
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
 
