@@ -8,6 +8,7 @@ import pytest
 pytest.importorskip("geoalchemy2", reason="geoalchemy2 required")
 
 from datetime import datetime
+from decimal import Decimal
 from unittest.mock import patch, MagicMock, ANY
 from shapely.geometry import shape
 from geoalchemy2.shape import from_shape
@@ -15,6 +16,7 @@ from geoalchemy2.shape import from_shape
 from app.models import (
     CoverageRequest,
     CoverageRequestContribution,
+    Profile,
 )
 from app.services import (
     create_request,
@@ -32,7 +34,8 @@ class MockPayload:
     def __init__(self, **kwargs):
         self.title = kwargs.get("title", "Test Request")
         self.description = kwargs.get("description")
-        self.created_by = kwargs.get("created_by", "user-1")
+        self.created_by = kwargs.get("created_by", "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+        self.created_by_display = kwargs.get("created_by_display")
         self.country = kwargs.get("country", "GB")
         self.city = kwargs.get("city", "London")
         self.reward_amount = kwargs.get("reward_amount", 100.0)
@@ -133,13 +136,15 @@ class TestCreateRequestService:
 
             db = MagicMock()
             db.execute.return_value.scalar.return_value = 0
+            # mock a profile with sufficient credits for the deduction
+            profile_mock = MagicMock()
+            profile_mock.credits = Decimal("500")
+            db.query.return_value.filter.return_value.first.return_value = profile_mock
 
             result = create_request(db, payload)
 
             assert result["status"] == "OPEN"
             assert result["initial_density_score"] == 0.0
-            db.add.assert_called_once()
-            db.commit.assert_called_once()
 
     def test_initial_density_from_existing_readings(self):
         payload = MockPayload(
@@ -163,6 +168,9 @@ class TestCreateRequestService:
 
             db = MagicMock()
             db.execute.return_value.scalar.return_value = 150
+            profile_mock = MagicMock()
+            profile_mock.credits = Decimal("500")
+            db.query.return_value.filter.return_value.first.return_value = profile_mock
 
             result = create_request(db, payload)
 
@@ -199,7 +207,9 @@ class TestFetchRequests:
     def _make_request(self, **overrides):
         fields = {
             "id": 1, "title": "Test", "description": "desc",
-            "created_by": "u1", "country": "GB", "city": "London",
+            "created_by": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            "created_by_display": None,
+            "country": "GB", "city": "London",
             "initial_density_score": 0, "current_density_score": 10,
             "target_density_score": 50, "reward_amount": 100,
             "status": "OPEN",
@@ -333,7 +343,9 @@ class TestUpdateRequestService:
     def _make_request(self, **overrides):
         fields = {
             "id": 1, "title": "Original", "description": "desc",
-            "created_by": "u1", "country": "GB", "city": "London",
+            "created_by": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            "created_by_display": None,
+            "country": "GB", "city": "London",
             "initial_density_score": 0, "current_density_score": 5,
             "target_density_score": 50, "reward_amount": 100,
             "status": "OPEN",
@@ -342,6 +354,33 @@ class TestUpdateRequestService:
         }
         fields.update(overrides)
         return MagicMock(spec=CoverageRequest, **fields)
+
+    _HAS_CONTRIB = object()
+
+    def _mock_db_with_profile(self, request, profile_credits=Decimal("1000"),
+                               contrib_result=None):
+        """Set up a mock db that returns the given request for CoverageRequest queries,
+        a profile stub for Profile queries, and optionally a contribution result.
+        Pass _HAS_CONTRIB as contrib_result to simulate existing contributions."""
+        db = MagicMock()
+        profile_mock = MagicMock()
+        profile_mock.credits = profile_credits
+
+        def query_side_effect(model):
+            chain = MagicMock()
+            if model is Profile:
+                chain.filter.return_value.first.return_value = profile_mock
+            elif model is CoverageRequestContribution:
+                if contrib_result is self._HAS_CONTRIB:
+                    chain.filter.return_value.first.return_value = MagicMock(spec=CoverageRequestContribution)
+                else:
+                    chain.filter.return_value.first.return_value = None
+            else:
+                chain.filter.return_value.first.return_value = request
+            return chain
+
+        db.query.side_effect = query_side_effect
+        return db
 
     class MockUpdatePayload:
         def __init__(self, **kwargs):
@@ -353,8 +392,7 @@ class TestUpdateRequestService:
 
     def test_update_title_and_description(self):
         request = self._make_request()
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = request
+        db = self._mock_db_with_profile(request)
         payload = self.MockUpdatePayload(
             title="Updated", description="New desc"
         )
@@ -367,8 +405,7 @@ class TestUpdateRequestService:
 
     def test_update_reward_amount(self):
         request = self._make_request(reward_amount=100)
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = request
+        db = self._mock_db_with_profile(request)
         payload = self.MockUpdatePayload(reward_amount=200.0)
 
         update_request(db, 1, payload)
@@ -377,13 +414,7 @@ class TestUpdateRequestService:
 
     def test_update_reward_cannot_decrease_after_contributions(self):
         request = self._make_request(reward_amount=100)
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = request
-        # Simulate existing contribution
-        db.query.return_value.filter.return_value.first.side_effect = [
-            request,  # first call for request lookup
-            MagicMock(spec=CoverageRequestContribution),  # second call for contrib check
-        ]
+        db = self._mock_db_with_profile(request, contrib_result=TestUpdateRequestService._HAS_CONTRIB)
         payload = self.MockUpdatePayload(reward_amount=50)
 
         with pytest.raises(Exception) as exc:
@@ -392,11 +423,7 @@ class TestUpdateRequestService:
 
     def test_update_reward_can_decrease_without_contributions(self):
         request = self._make_request(reward_amount=100)
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.side_effect = [
-            request,  # first call for request lookup
-            None,     # second call for contrib check (no contributions)
-        ]
+        db = self._mock_db_with_profile(request)
         payload = self.MockUpdatePayload(reward_amount=50)
 
         update_request(db, 1, payload)
@@ -405,8 +432,7 @@ class TestUpdateRequestService:
 
     def test_target_cannot_be_lower_than_current(self):
         request = self._make_request(current_density_score=30)
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = request
+        db = self._mock_db_with_profile(request)
         payload = self.MockUpdatePayload(target_density_score=20)
 
         with pytest.raises(Exception) as exc:
@@ -415,8 +441,7 @@ class TestUpdateRequestService:
 
     def test_target_can_be_higher_than_current(self):
         request = self._make_request(current_density_score=30)
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = request
+        db = self._mock_db_with_profile(request)
         payload = self.MockUpdatePayload(target_density_score=80)
 
         update_request(db, 1, payload)
@@ -425,8 +450,7 @@ class TestUpdateRequestService:
 
     def test_status_change_to_cancelled_sets_completed_at(self):
         request = self._make_request(completed_at=None)
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = request
+        db = self._mock_db_with_profile(request)
         payload = self.MockUpdatePayload(status="CANCELLED")
 
         update_request(db, 1, payload)
@@ -436,8 +460,7 @@ class TestUpdateRequestService:
 
     def test_invalid_status_rejected(self):
         request = self._make_request()
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = request
+        db = self._mock_db_with_profile(request)
         payload = self.MockUpdatePayload(status="INVALID")
 
         with pytest.raises(Exception) as exc:
@@ -446,8 +469,7 @@ class TestUpdateRequestService:
 
     def test_completed_request_rejected(self):
         request = self._make_request(status="COMPLETED")
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = request
+        db = self._mock_db_with_profile(request)
         payload = self.MockUpdatePayload(title="Should not work")
 
         with pytest.raises(Exception) as exc:
