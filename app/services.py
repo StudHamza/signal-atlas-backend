@@ -12,6 +12,7 @@ from app.models import (
 )
 from shapely.wkt import dumps
 from decimal import Decimal
+from uuid import UUID
 
 
 def create_request(db: Session, payload):
@@ -57,6 +58,7 @@ def create_request(db: Session, payload):
         title=payload.title,
         description=payload.description,
         created_by=payload.created_by,
+        created_by_display=payload.created_by_display,
         country=payload.country,
         city=payload.city,
         area=area_geography,
@@ -70,6 +72,34 @@ def create_request(db: Session, payload):
     db.add(request)
     db.commit()
     db.refresh(request)
+
+    # deduct reward amount from creator's credits
+    try:
+        user_uuid = UUID(payload.created_by)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "Invalid user ID")
+
+    profile = db.query(Profile).filter(Profile.id == user_uuid).first()
+    if not profile:
+        raise HTTPException(400, "Profile not found")
+
+    amount = Decimal(str(payload.reward_amount))
+    if profile.credits < amount:
+        request.status = "CANCELLED"
+        request.completed_at = datetime.utcnow()
+        db.commit()
+        raise HTTPException(400, "Insufficient credits")
+
+    profile.credits -= amount
+    transaction = WalletTransaction(
+        user_id=user_uuid,
+        amount=-amount,
+        transaction_type="HOLD",
+        status="COMPLETED",
+        description=f"Held for coverage request #{request.id}",
+    )
+    db.add(transaction)
+    db.commit()
 
     return {
         "message": "Coverage request created successfully",
@@ -239,6 +269,23 @@ def update_request(db: Session, request_id, payload):
 
         if payload.status == "CANCELLED":
             request.completed_at = datetime.utcnow()
+            # refund held credits
+            try:
+                user_uuid = UUID(request.created_by)
+            except (ValueError, TypeError):
+                raise HTTPException(400, "Invalid user ID on request")
+            profile = db.query(Profile).filter(Profile.id == user_uuid).first()
+            if profile:
+                amount = Decimal(str(request.reward_amount))
+                profile.credits += amount
+                refund = WalletTransaction(
+                    user_id=user_uuid,
+                    amount=amount,
+                    transaction_type="REFUND",
+                    status="COMPLETED",
+                    description=f"Refund for cancelled coverage request #{request.id}",
+                )
+                db.add(refund)
 
     db.commit()
 

@@ -8,7 +8,8 @@ from app.database import get_db
 from app.models import (
     CoverageRequest,
     CoverageRequestContribution,
-    CoverageRequestPoint
+    CoverageRequestPoint,
+    Profile,
 )
 from app.schemas import (
     CreateCoverageRequest,
@@ -206,6 +207,7 @@ def get_coverage_request(
         "status": request.status,
         "contributors_count": contributors_count,
         "created_by": request.created_by,
+        "created_by_display": request.created_by_display,
         "created_at": request.created_at.isoformat() if request.created_at else None,
         "completed_at": request.completed_at.isoformat() if request.completed_at else None,
     }
@@ -263,6 +265,8 @@ def create_coverage_request(
     user: UserInfo = Depends(require_user),
 ):
     payload.created_by = str(user.id)
+    profile = db.query(Profile).filter(Profile.id == user.id).first()
+    payload.created_by_display = profile.username if profile else None
     return create_request(db=db, payload=payload)
 
 
