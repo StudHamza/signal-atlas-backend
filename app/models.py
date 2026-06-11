@@ -11,6 +11,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint
 )
+from sqlalchemy.orm import relationship
 
 from app.database import Base
 try:
@@ -194,6 +195,8 @@ class Profile(Base):
     credits = Column(Numeric(12, 2), nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    devices = relationship("UserDevice", backref="profile", lazy="selectin")
 
 
 class UserDevice(Base):

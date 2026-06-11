@@ -56,10 +56,6 @@ def _call_supabase(path: str, body: dict) -> dict:
 
 
 def _profile_to_response(p: Profile) -> ProfileResponse:
-    device_ids = [
-        d.device_id
-        for d in p.devices
-    ] if hasattr(p, "devices") and p.devices else []
     return ProfileResponse(
         id=str(p.id),
         username=p.username,
@@ -68,7 +64,7 @@ def _profile_to_response(p: Profile) -> ProfileResponse:
         credits=float(p.credits) if p.credits else None,
         created_at=p.created_at.isoformat() if p.created_at else None,
         updated_at=p.updated_at.isoformat() if p.updated_at else None,
-        device_ids=device_ids,
+        device_ids=[d.device_id for d in p.devices] if p.devices else [],
     )
 
 

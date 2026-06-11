@@ -158,6 +158,7 @@ def _profile_to_response(p: Profile) -> ProfileResponse:
         credits=float(p.credits) if p.credits else None,
         created_at=p.created_at.isoformat() if p.created_at else None,
         updated_at=p.updated_at.isoformat() if p.updated_at else None,
+        device_ids=[d.device_id for d in p.devices] if p.devices else [],
     )
 
 
