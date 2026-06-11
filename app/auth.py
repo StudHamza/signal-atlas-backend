@@ -64,6 +64,9 @@ def _get_jwk_public_key(kid: str):
         return None
     for key in keys:
         if key.get("kid") == kid:
+            kty = key.get("kty", "")
+            if kty == "EC":
+                return jwt.algorithms.ECAlgorithm.from_jwk(key)
             return jwt.algorithms.RSAAlgorithm.from_jwk(key)
     return None
 
@@ -91,16 +94,17 @@ def get_current_user(
         return None
 
     try:
-        # First try: validate using JWKS (RS256)
+        # First try: validate using JWKS
         unverified_header = jwt.get_unverified_header(token)
         kid = unverified_header.get("kid")
+        alg = unverified_header.get("alg", "RS256")
         public_key = _get_jwk_public_key(kid) if kid else None
 
         if public_key:
             payload = jwt.decode(
                 token,
                 key=public_key,
-                algorithms=["RS256"],
+                algorithms=[alg],
                 options={"verify_aud": False},
             )
         else:
