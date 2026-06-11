@@ -95,6 +95,9 @@ class CoverageRequest(Base):
 
     created_by = Column(String(100), nullable=False)
 
+    # human-readable display name (username or display_name)
+    created_by_display = Column(String(255), nullable=True)
+
     # searchable location metadata
     country = Column(String(100), index=True)
     city = Column(String(100), index=True)

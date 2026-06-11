@@ -144,7 +144,7 @@ def test_user(db_session):
     Overrides require_user dependency to bypass JWT validation for tests.
     """
     uid = uuid4()
-    profile = Profile(id=uid, username="testuser", credits=Decimal("0"))
+    profile = Profile(id=uid, username="testuser", credits=Decimal("10000"))
     db_session.add(profile)
     db_session.commit()
     db_session.refresh(profile)

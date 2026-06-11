@@ -134,6 +134,7 @@ class CreateCoverageRequest(BaseModel):
     target_density_score: float
     area: PolygonGeometry
     created_by: Optional[str] = None
+    created_by_display: Optional[str] = None
 
 
 class UpdateCoverageRequest(BaseModel):

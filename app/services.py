@@ -12,6 +12,7 @@ from app.models import (
 )
 from shapely.wkt import dumps
 from decimal import Decimal
+from uuid import UUID
 
 
 def create_request(db: Session, payload):
@@ -57,6 +58,7 @@ def create_request(db: Session, payload):
         title=payload.title,
         description=payload.description,
         created_by=payload.created_by,
+        created_by_display=payload.created_by_display,
         country=payload.country,
         city=payload.city,
         area=area_geography,
@@ -70,6 +72,34 @@ def create_request(db: Session, payload):
     db.add(request)
     db.commit()
     db.refresh(request)
+
+    # deduct reward amount from creator's credits
+    try:
+        user_uuid = UUID(payload.created_by)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "Invalid user ID")
+
+    profile = db.query(Profile).filter(Profile.id == user_uuid).first()
+    if not profile:
+        raise HTTPException(400, "Profile not found")
+
+    amount = Decimal(str(payload.reward_amount))
+    if profile.credits < amount:
+        request.status = "CANCELLED"
+        request.completed_at = datetime.utcnow()
+        db.commit()
+        raise HTTPException(400, "Insufficient credits")
+
+    profile.credits -= amount
+    transaction = WalletTransaction(
+        user_id=user_uuid,
+        amount=-amount,
+        transaction_type="HOLD",
+        status="COMPLETED",
+        description=f"Held for coverage request #{request.id}",
+    )
+    db.add(transaction)
+    db.commit()
 
     return {
         "message": "Coverage request created successfully",
@@ -150,6 +180,9 @@ def fetch_requests(db: Session, status=None, country=None, city=None, sort_by=No
 
             "status": request.status,
 
+            "created_by": request.created_by,
+            "created_by_display": request.created_by_display,
+
             "created_at": request.created_at.isoformat() if request.created_at else None,
             "completed_at":
                 request.completed_at.isoformat()
@@ -191,7 +224,7 @@ def update_request(db: Session, request_id, payload):
     if payload.description is not None:
         request.description = payload.description
 
-    # reward amount
+    # reward amount — adjust credits by the difference
     if payload.reward_amount is not None:
         contributions_exist = (
             db.query(CoverageRequestContribution)
@@ -208,6 +241,45 @@ def update_request(db: Session, request_id, payload):
                 status_code=400,
                 detail=("Reward amount cannot be reduced after contributions exist")
             )
+
+        old_amount = Decimal(str(request.reward_amount))
+        new_amount = Decimal(str(payload.reward_amount))
+        diff = new_amount - old_amount
+
+        if diff != 0:
+            try:
+                user_uuid = UUID(request.created_by)
+            except (ValueError, TypeError):
+                raise HTTPException(400, "Invalid user ID on request")
+
+            profile = db.query(Profile).filter(Profile.id == user_uuid).first()
+            if not profile:
+                raise HTTPException(400, "Profile not found")
+
+            if diff > 0:
+                if profile.credits < diff:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Insufficient credits. Need {float(diff):.2f} EGP more."
+                    )
+                profile.credits -= diff
+                tx = WalletTransaction(
+                    user_id=user_uuid,
+                    amount=-diff,
+                    transaction_type="HOLD",
+                    status="COMPLETED",
+                    description=f"Additional hold for coverage request #{request.id}",
+                )
+            else:
+                profile.credits += abs(diff)
+                tx = WalletTransaction(
+                    user_id=user_uuid,
+                    amount=abs(diff),
+                    transaction_type="REFUND",
+                    status="COMPLETED",
+                    description=f"Partial refund for coverage request #{request.id}",
+                )
+            db.add(tx)
 
         request.reward_amount = payload.reward_amount
 
@@ -239,6 +311,23 @@ def update_request(db: Session, request_id, payload):
 
         if payload.status == "CANCELLED":
             request.completed_at = datetime.utcnow()
+            # refund held credits
+            try:
+                user_uuid = UUID(request.created_by)
+            except (ValueError, TypeError):
+                raise HTTPException(400, "Invalid user ID on request")
+            profile = db.query(Profile).filter(Profile.id == user_uuid).first()
+            if profile:
+                amount = Decimal(str(request.reward_amount))
+                profile.credits += amount
+                refund = WalletTransaction(
+                    user_id=user_uuid,
+                    amount=amount,
+                    transaction_type="REFUND",
+                    status="COMPLETED",
+                    description=f"Refund for cancelled coverage request #{request.id}",
+                )
+                db.add(refund)
 
     db.commit()
 
