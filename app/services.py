@@ -180,6 +180,9 @@ def fetch_requests(db: Session, status=None, country=None, city=None, sort_by=No
 
             "status": request.status,
 
+            "created_by": request.created_by,
+            "created_by_display": request.created_by_display,
+
             "created_at": request.created_at.isoformat() if request.created_at else None,
             "completed_at":
                 request.completed_at.isoformat()
@@ -221,7 +224,7 @@ def update_request(db: Session, request_id, payload):
     if payload.description is not None:
         request.description = payload.description
 
-    # reward amount
+    # reward amount — adjust credits by the difference
     if payload.reward_amount is not None:
         contributions_exist = (
             db.query(CoverageRequestContribution)
@@ -238,6 +241,45 @@ def update_request(db: Session, request_id, payload):
                 status_code=400,
                 detail=("Reward amount cannot be reduced after contributions exist")
             )
+
+        old_amount = Decimal(str(request.reward_amount))
+        new_amount = Decimal(str(payload.reward_amount))
+        diff = new_amount - old_amount
+
+        if diff != 0:
+            try:
+                user_uuid = UUID(request.created_by)
+            except (ValueError, TypeError):
+                raise HTTPException(400, "Invalid user ID on request")
+
+            profile = db.query(Profile).filter(Profile.id == user_uuid).first()
+            if not profile:
+                raise HTTPException(400, "Profile not found")
+
+            if diff > 0:
+                if profile.credits < diff:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Insufficient credits. Need {float(diff):.2f} EGP more."
+                    )
+                profile.credits -= diff
+                tx = WalletTransaction(
+                    user_id=user_uuid,
+                    amount=-diff,
+                    transaction_type="HOLD",
+                    status="COMPLETED",
+                    description=f"Additional hold for coverage request #{request.id}",
+                )
+            else:
+                profile.credits += abs(diff)
+                tx = WalletTransaction(
+                    user_id=user_uuid,
+                    amount=abs(diff),
+                    transaction_type="REFUND",
+                    status="COMPLETED",
+                    description=f"Partial refund for coverage request #{request.id}",
+                )
+            db.add(tx)
 
         request.reward_amount = payload.reward_amount
 
