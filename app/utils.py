@@ -90,9 +90,11 @@ def apply_mobile_filters(
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - PERIOD_DELTA[period]
         query = query.filter(DeviceReading.timestamp >= cutoff)
     if source and source.lower() != "all":
-        if source.lower() == "measured":
+        if source.lower() == "measured" or source.lower() == "crowdsourced":
             # Returns everything EXCEPT predicted
             query = query.filter(DeviceReading.source != "predicted")
+        elif source.lower() == "prediction" or source.lower() == "predicted":
+            query = query.filter(DeviceReading.source == "predicted")
         else:
             # Fallback for specific source types
             query = query.filter(DeviceReading.source == source)

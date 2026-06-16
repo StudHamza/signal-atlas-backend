@@ -53,7 +53,7 @@ class NetworkDataResponse(BaseModel):
     rsrq_uncertainty: Optional[float]
     rsrp_uncertainty: Optional[float]
     gps_accuracy: Optional[float]
-    created_at: str
+    created_at: Optional[str] = None
 
 
 class BatchNetworkDataRequest(BaseModel):
